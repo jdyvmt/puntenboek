@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Puntenboek Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    /* Custom scrollbar voor zijbalken */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* Printblad & Tabel opmaak (zowel op scherm als tijdens printen) */
+    .a4-landscape-sheet {
+      width: 297mm;
+      min-height: 210mm;
+      padding: 10mm 12mm;
+      background: #ffffff;
+      color: #0f172a;
+      box-sizing: border-box;
+    }
+
+    .grade-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    .grade-table th,
+    .grade-table td {
+      border: 1px solid #64748b;
+      padding: 0;
+      vertical-align: middle;
+      box-sizing: border-box;
+    }
+
+    /* Koprijen zonder tekstlabels */
+    .grade-table thead th {
+      background-color: #ffffff;
+      font-weight: 600;
+    }
+
+    .grade-table thead tr.row-desc th {
+      height: 15mm; /* Hoger vak bovenaan voor omschrijving/onderwerp */
+      border-bottom: 1px dashed #94a3b8;
+      vertical-align: top;
+      padding: 2px 3px;
+      font-size: 7.5pt;
+      font-weight: 500;
+      color: #334155;
+      text-align: left;
+      word-wrap: break-word;
+    }
+
+    .grade-table thead tr.row-date th {
+      height: 6.5mm; /* Middelste vak voor datum */
+      border-top: none;
+      border-bottom: 1px dashed #94a3b8;
+      padding: 1px 2px;
+      font-size: 7pt;
+      font-weight: 400;
+      color: #475569;
+      text-align: center;
+    }
+
+    .grade-table thead tr.row-max th {
+      height: 6.5mm; /* Onderste vak voor maximumscore */
+      border-top: none;
+      border-bottom: 1.5px solid #334155;
+      background-color: #f8fafc;
+      padding: 1px 2px;
+      font-size: 7.5pt;
+      font-weight: 600;
+      color: #0f172a;
+      text-align: center;
+    }
+
+    .grade-table thead th.col-nr,
+    .grade-table thead th.col-class,
+    .grade-table thead th.col-name {
+      background-color: #f1f5f9;
+      border-bottom: 1.5px solid #334155;
+      font-size: 8.5pt;
+      color: #0f172a;
+      padding: 4px 6px;
+    }
+
+    .col-nr {
+      width: 9mm;
+      text-align: center;
+    }
+
+    .col-class {
+      width: 16mm;
+      text-align: center;
+    }
+
+    .col-name {
+      width: 56mm;
+      text-align: left;
+    }
+
+    .grade-table tbody td {
+      height: 7.2mm;
+      font-size: 9pt;
+    }
+
+    .grade-table tbody tr:nth-child(even) td {
+      background-color: #fafafa;
+    }
+
+    .grade-table tbody tr.class-divider-row td {
+      background-color: #e2e8f0 !important;
+      font-weight: 700;
+      font-size: 8.5pt;
+      color: #0f172a;
+      height: 6.5mm;
+      padding-left: 6px;
+      letter-spacing: 0.03em;
+    }
+
+    .cell-text-nr {
+      text-align: center;
+      color: #64748b;
+      font-size: 8pt;
+    }
+
+    .cell-text-class {
+      text-align: center;
+      font-weight: 600;
+      font-size: 8pt;
+      color: #334155;
+    }
+
+    .cell-text-name {
+      padding-left: 6px !important;
+      padding-right: 4px !important;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #0f172a;
+    }
+
+    /* Interactieve invulbare kopcellen op scherm */
+    .editable-header-cell {
+      cursor: text;
+      transition: background-color 0.15s;
+    }
+    .editable-header-cell:hover {
+      background-color: #eff6ff !important;
+    }
+    .editable-header-cell:focus {
+      outline: 2px solid #3b82f6;
+      outline-offset: -2px;
+      background-color: #ffffff !important;
+    }
+
+    /* Pagina-einde bij aparte pagina per klas */
+    .page-break-before {
+      break-before: page;
+      page-break-before: always;
+    }
+
+    /* PRINT STIJLEN */
+    @page {
+      size: A4 landscape;
+      margin: 10mm;
+    }
+
+    @media print {
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      html, body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        height: auto !important;
+        overflow: visible !important;
+      }
+
+      .no-print {
+        display: none !important;
+      }
+
+      #app-layout {
+        display: block !important;
+        height: auto !important;
+        overflow: visible !important;
+      }
+
+      #preview-pane {
+        padding: 0 !important;
+        margin: 0 !important;
+        background: #ffffff !important;
+        overflow: visible !important;
+        display: block !important;
+      }
+
+      .a4-landscape-sheet {
+        width: 100% !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+      }
+
+      .print-section-block {
+        margin-bottom: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        width: 100% !important;
+        min-height: 0 !important;
+      }
+
+      .grade-table thead {
+        display: table-header-group;
+      }
+
+      .grade-table tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 h-screen flex flex-col overflow-hidden">
+
+  <!-- Bovenbalk (verborgen bij printen) -->
+  <header class="no-print bg-white border-b border-slate-200 px-5 py-3 flex flex-wrap items-center justify-between gap-4 shrink-0 z-10">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-base font-bold text-slate-900 leading-tight">Puntenboek Generator</h1>
+        <p class="text-xs text-slate-500">Beheer klassen, kies de volgorde en print op liggend A4</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2.5">
+      <button onclick="exportBackup()" title="Download een JSON back-up van je klassen en instellingen" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition">
+        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        Back-up opslaan
+      </button>
+
+      <label title="Herstel klassen vanuit een eerder opgeslagen JSON-bestand" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition cursor-pointer">
+        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+        </svg>
+        Back-up laden
+        <input type="file" id="import-file-input" accept=".json" class="hidden" onchange="importBackup(event)">
+      </label>
+
+      <button onclick="window.print()" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+        </svg>
+        Printen / Opslaan als PDF
+      </button>
+    </div>
+  </header>
+
+  <!-- Hoofdindeling: Linker controlepaneel + Rechter printvoorbeeld -->
+  <div id="app-layout" class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+
+    <!-- LINKERPANEEL: Beheer & Printinstellingen -->
+    <aside class="no-print w-full lg:w-[410px] xl:w-[440px] bg-white border-r border-slate-200 flex flex-col shrink-0 h-1/2 lg:h-full">
+      <!-- Tabbladen -->
+      <div class="flex border-b border-slate-200 bg-slate-50/70 px-3 pt-2 gap-1 shrink-0">
+        <button id="tab-btn-classes" onclick="switchTab('classes')" class="flex-1 py-2.5 px-3 text-xs font-semibold rounded-t-lg border-b-2 border-indigo-600 text-indigo-600 bg-white transition flex items-center justify-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          1. Klassen & Leerlingen
+        </button>
+        <button id="tab-btn-print" onclick="switchTab('print')" class="flex-1 py-2.5 px-3 text-xs font-semibold rounded-t-lg border-b-2 border-transparent text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1.5">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+          </svg>
+          2. Bladopmaak & Volgorde
+        </button>
+      </div>
+
+      <!-- TAB 1: KLASSEN & LEERLINGEN BEHEER -->
+      <div id="tab-panel-classes" class="flex-1 overflow-y-auto p-4 space-y-5">
+        <!-- Nieuwe klas aanmaken -->
+        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+          <label class="block text-xs font-semibold text-slate-700 mb-2">Nieuwe klas toevoegen</label>
+          <form onsubmit="addClass(event)" class="flex gap-2">
+            <input type="text" id="new-class-name" placeholder="Bijv. 4HW, 5EMT, 3LAT..." required class="flex-1 px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <button type="submit" class="px-3.5 py-2 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition shrink-0">
+              + Klas
+            </button>
+          </form>
+        </div>
+
+        <!-- Klas selector & leerlingenlijst -->
+        <div id="class-editor-area" class="space-y-4">
+          <!-- Dynamisch ingevuld via JS -->
+        </div>
+
+        <!-- Reset knop onderaan -->
+        <div class="pt-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
+          <span>Automatisch opgeslagen in browser</span>
+          <button onclick="confirmClearAll()" class="text-rose-600 hover:text-rose-700 font-medium underline">
+            Alles wissen
+          </button>
+        </div>
+      </div>
+
+      <!-- TAB 2: PRINTSELECTIE & VOLGORDE -->
+      <div id="tab-panel-print" class="hidden flex-1 overflow-y-auto p-4 space-y-5">
+        <!-- Titel & Kopgegevens -->
+        <div class="space-y-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Titel & Koptekst</h3>
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1">Hoofdtitel puntenboek</label>
+            <input type="text" id="setting-title" oninput="updateSetting('title', this.value)" placeholder="Bijv. Puntenboek Nederlands — 2026-2027" class="w-full px-3 py-1.5 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1">Leerkracht (optioneel)</label>
+              <input type="text" id="setting-teacher" oninput="updateSetting('teacher', this.value)" placeholder="Naam leerkracht" class="w-full px-3 py-1.5 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1">Periode / Trimester</label>
+              <input type="text" id="setting-period" oninput="updateSetting('period', this.value)" placeholder="Bijv. Periode 1" class="w-full px-3 py-1.5 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+          </div>
+        </div>
+
+        <!-- Klassen selecteren en volgorde bepalen -->
+        <div class="space-y-2.5">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Klassen & Volgorde op blad</h3>
+            <span class="text-[11px] text-slate-400">Vink aan & versleep of klik pijltjes</span>
+          </div>
+          <div id="print-order-list" class="space-y-1.5">
+            <!-- Dynamisch ingevuld via JS -->
+          </div>
+        </div>
+
+        <!-- Pagina-indeling & Kolommen -->
+        <div class="space-y-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Indeling & Evaluatiekolommen</h3>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-700 mb-1.5">Meerdere klassen groeperen</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" id="mode-continuous" onclick="updateSetting('pageMode', 'continuous')" class="px-3 py-2 text-xs font-medium rounded-lg border text-center transition">
+                Doorlopende lijst
+              </button>
+              <button type="button" id="mode-pagePerClass" onclick="updateSetting('pageMode', 'pagePerClass')" class="px-3 py-2 text-xs font-medium rounded-lg border text-center transition">
+                Nieuwe pagina per klas
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-1">
+            <label class="text-xs font-medium text-slate-700">Toon klasnaam bij elke leerling</label>
+            <input type="checkbox" id="setting-showClassCol" onchange="updateSetting('showClassCol', this.checked)" class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+          </div>
+
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-medium text-slate-700">Doorlopende nummering</label>
+            <input type="checkbox" id="setting-continuousNumbering" onchange="updateSetting('continuousNumbering', this.checked)" class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+          </div>
+
+          <div class="pt-1">
+            <div class="flex justify-between text-xs font-medium text-slate-700 mb-1">
+              <span>Aantal evaluatiekolommen</span>
+              <span id="col-count-label" class="font-bold text-indigo-600">12</span>
+            </div>
+            <input type="range" id="setting-colCount" min="6" max="18" value="12" oninput="updateSetting('colCount', parseInt(this.value))" class="w-full accent-indigo-600 cursor-pointer">
+            <div class="flex justify-between text-[10px] text-slate-400">
+              <span>6</span>
+              <span>12 (standaard)</span>
+              <span>18</span>
+            </div>
+          </div>
+
+          <div class="pt-1">
+            <div class="flex justify-between text-xs font-medium text-slate-700 mb-1">
+              <span>Extra lege reserverijen onderaan</span>
+              <span id="extra-rows-label" class="font-bold text-indigo-600">2</span>
+            </div>
+            <input type="range" id="setting-extraRows" min="0" max="10" value="2" oninput="updateSetting('extraRows', parseInt(this.value))" class="w-full accent-indigo-600 cursor-pointer">
+          </div>
+
+          <div class="pt-2 border-t border-slate-200 flex items-center justify-between">
+            <span class="text-[11px] text-slate-500">Tip: Klik op de bovenste vakjes in het voorbeeld rechts om toetsen alvast digitaal in te vullen.</span>
+            <button onclick="clearHeaderNotes()" class="text-[11px] text-slate-600 hover:text-rose-600 font-medium underline shrink-0 ml-2">
+              Kopvakjes wissen
+            </button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- RECHTERPANEEL: LIVE PRINTVOORBEELD OP LIGGEND A4 -->
+    <main id="preview-pane" class="flex-1 overflow-auto bg-slate-200/80 p-4 sm:p-8 flex flex-col items-center">
+      <!-- Info-balkje boven het A4 voorbeeld -->
+      <div class="no-print w-full max-w-[297mm] mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+        <div class="flex items-center gap-2">
+          <span class="inline-flex items-center px-2 py-0.5 rounded bg-white border border-slate-300 font-medium text-slate-700">
+            A4 Liggend (297 × 210 mm)
+          </span>
+          <span id="preview-summary-text"></span>
+        </div>
+        <div class="text-slate-500">
+          Klik in de 3 lege kopvakjes per kolom om optioneel onderwerp, datum of max. score vooraf in te vullen
+        </div>
+      </div>
+
+      <!-- Hier wordt het printbare puntenboek gerenderd -->
+      <div id="print-sheets-container" class="space-y-6 pb-10">
+        <!-- Dynamisch gegenereerd -->
+      </div>
+    </main>
+  </div>
+
+  <!-- Custom Modal / Bevestigingsdialoog (geen window.alert / window.confirm) -->
+  <div id="custom-modal" class="no-print hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-5 space-y-4 border border-slate-200">
+      <h3 id="modal-title" class="text-base font-bold text-slate-900">Bevestigen</h3>
+      <p id="modal-message" class="text-sm text-slate-600"></p>
+      <div id="modal-input-wrapper" class="hidden">
+        <input type="text" id="modal-input" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button id="modal-cancel-btn" onclick="closeModal()" class="px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition">
+          Annuleren
+        </button>
+        <button id="modal-confirm-btn" class="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition">
+          Bevestigen
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast melding -->
+  <div id="toast-banner" class="no-print fixed bottom-5 right-5 bg-slate-900 text-white text-xs font-medium px-4 py-2.5 rounded-xl shadow-lg opacity-0 pointer-events-none transition-opacity duration-200 z-50">
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'puntenboek_generator_v1';
+
+    // Standaard voorbeeldgegevens bij eerste gebruik
+    const DEFAULT_STATE = {
+      classes: [
+        {
+          id: 'cls_1',
+          name: '4HW',
+          selected: true,
+          students: [
+            'Aerts Lucas',
+            'Claes Emma',
+            'De Smet Noah',
+            'Dubois Mila',
+            'Jacobs Liam',
+            'Janssens Louise',
+            'Maes Arthur',
+            'Peeters Olivia',
+            'Van Damme Finn',
+            'Willems Noor'
+          ]
+        },
+        {
+          id: 'cls_2',
+          name: '4EMT',
+          selected: true,
+          students: [
+            'Bogaert Mats',
+            'Coppens Elena',
+            'De Vries Victor',
+            'Goossens Lotte',
+            'Hendrickx Jules',
+            'Martens Amber',
+            'Mertens Louis',
+            'Vermeulen Camille'
+          ]
+        },
+        {
+          id: 'cls_3',
+          name: '3LAT',
+          selected: false,
+          students: [
+            'Baert Simon',
+            'Cools Hannah',
+            'Lauwers Matteo',
+            'Segers Marie',
+            'Stevens Leon'
+          ]
+        }
+      ],
+      activeClassId: 'cls_1',
+      settings: {
+        title: 'Puntenboek Nederlands — 2026-2027',
+        teacher: '',
+        period: '',
+        pageMode: 'continuous', // 'continuous' of 'pagePerClass'
+        showClassCol: true,
+        continuousNumbering: false,
+        colCount: 12,
+        extraRows: 2,
+        headerNotes: {} // Slaat optioneel ingevulde kopvakjes op per scope/kolom
+      }
+    };
+
+    let state = loadState();
+    let dragSourceIndex = null;
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return JSON.parse(JSON.stringify(DEFAULT_STATE));
+        const parsed = JSON.parse(raw);
+        return {
+          classes: Array.isArray(parsed.classes) ? parsed.classes : [],
+          activeClassId: parsed.activeClassId || (parsed.classes[0] ? parsed.classes[0].id : null),
+          settings: { ...DEFAULT_STATE.settings, ...(parsed.settings || {}) }
+        };
+      } catch (e) {
+        return JSON.parse(JSON.stringify(DEFAULT_STATE));
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {
+        console.error('Kon niet opslaan in localStorage', e);
+      }
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast-banner');
+      toast.textContent = msg;
+      toast.classList.remove('opacity-0');
+      toast.classList.add('opacity-100');
+      clearTimeout(toast._timer);
+      toast._timer = setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        toast.classList.add('opacity-0');
+      }, 2600);
+    }
+
+    // Tabbladen wisselen
+    function switchTab(tab) {
+      const btnClasses = document.getElementById('tab-btn-classes');
+      const btnPrint = document.getElementById('tab-btn-print');
+      const panelClasses = document.getElementById('tab-panel-classes');
+      const panelPrint = document.getElementById('tab-panel-print');
+
+      if (tab === 'classes') {
+        btnClasses.classList.add('border-indigo-600', 'text-indigo-600', 'bg-white');
+        btnClasses.classList.remove('border-transparent', 'text-slate-600');
+        btnPrint.classList.remove('border-indigo-600', 'text-indigo-600', 'bg-white');
+        btnPrint.classList.add('border-transparent', 'text-slate-600');
+        panelClasses.classList.remove('hidden');
+        panelPrint.classList.add('hidden');
+      } else {
+        btnPrint.classList.add('border-indigo-600', 'text-indigo-600', 'bg-white');
+        btnPrint.classList.remove('border-transparent', 'text-slate-600');
+        btnClasses.classList.remove('border-indigo-600', 'text-indigo-600', 'bg-white');
+        btnClasses.classList.add('border-transparent', 'text-slate-600');
+        panelPrint.classList.remove('hidden');
+        panelClasses.classList.add('hidden');
+      }
+    }
+
+    // --- KLASSEN & LEERLINGEN BEHEER ---
+
+    function addClass(e) {
+      e.preventDefault();
+      const input = document.getElementById('new-class-name');
+      const name = input.value.trim();
+      if (!name) return;
+
+      const newClass = {
+        id: 'cls_' + Date.now(),
+        name: name,
+        selected: true,
+        students: []
+      };
+      state.classes.push(newClass);
+      state.activeClassId = newClass.id;
+      input.value = '';
+      saveState();
+      renderAll();
+      showToast(`Klas "${name}" toegevoegd`);
+    }
+
+    function selectActiveClass(id) {
+      state.activeClassId = id;
+      saveState();
+      renderClassEditor();
+    }
+
+    function renameClass(id) {
+      const cls = state.classes.find(c => c.id === id);
+      if (!cls) return;
+      openPromptModal('Klasnaam wijzigen', 'Geef een nieuwe naam voor deze klas:', cls.name, (newName) => {
+        if (newName && newName.trim()) {
+          cls.name = newName.trim();
+          saveState();
+          renderAll();
+          showToast('Klasnaam aangepast');
+        }
+      });
+    }
+
+    function deleteClass(id) {
+      const cls = state.classes.find(c => c.id === id);
+      if (!cls) return;
+      openConfirmModal(
+        'Klas verwijderen',
+        `Weet je zeker dat je klas "${cls.name}" en alle ${cls.students.length} leerlingen wilt verwijderen?`,
+        () => {
+          state.classes = state.classes.filter(c => c.id !== id);
+          if (state.activeClassId === id) {
+            state.activeClassId = state.classes[0] ? state.classes[0].id : null;
+          }
+          saveState();
+          renderAll();
+          showToast(`Klas "${cls.name}" verwijderd`);
+        }
+      );
+    }
+
+    function addSingleStudent(e) {
+      e.preventDefault();
+      const cls = state.classes.find(c => c.id === state.activeClassId);
+      if (!cls) return;
+      const input = document.getElementById('single-student-input');
+      const name = input.value.trim();
+      if (!name) return;
+
+      cls.students.push(name);
+      input.value = '';
+      saveState();
+      renderAll();
+      input.focus();
+    }
+
+    function addBulkStudents() {
+      const cls = state.classes.find(c => c.id === state.activeClassId);
+      if (!cls) return;
+      const textarea = document.getElementById('bulk-students-input');
+      const lines = textarea.value
+        .split(/\r?\n/)
+        .map(line => line.replace(/^[\d]+[.)\-\s]+/, '').trim()) // Verwijdert eventuele voorloopnummers zoals "1. "
+        .filter(line => line.length > 0);
+
+      if (lines.length === 0) return;
+
+      cls.students.push(...lines);
+      textarea.value = '';
+      saveState();
+      renderAll();
+      showToast(`${lines.length} leerling(en) toegevoegd aan ${cls.name}`);
+    }
+
+    function sortStudentsAlpha() {
+      const cls = state.classes.find(c => c.id === state.activeClassId);
+      if (!cls) return;
+      cls.students.sort((a, b) => a.localeCompare(b, 'nl', { sensitivity: 'base' }));
+      saveState();
+      renderAll();
+      showToast('Leerlingen alfabetisch gesorteerd');
+    }
+
+    function editStudent(index) {
+      const cls = state.classes.find(c => c.id === state.activeClassId);
+      if (!cls) return;
+      const currentName = cls.students[index];
+      openPromptModal('Naam bewerken', 'Pas de naam van de leerling aan:', currentName, (newName) => {
+        if (newName && newName.trim()) {
+          cls.students[index] = newName.trim();
+          saveState();
+          renderAll();
+        }
+      });
+    }
+
+    function removeStudent(index) {
+      const cls = state.classes.find(c => c.id === state.activeClassId);
+      if (!cls) return;
+      cls.students.splice(index, 1);
+      saveState();
+      renderAll();
+    }
+
+    function moveStudent(index, direction) {
+      const cls = state.classes.find(c => c.id === state.activeClassId);
+      if (!cls) return;
+      const newIndex = index + direction;
+      if (newIndex < 0 || newIndex >= cls.students.length) return;
+      const [item] = cls.students.splice(index, 1);
+      cls.students.splice(newIndex, 0, item);
+      saveState();
+      renderAll();
+    }
+
+    function renderClassEditor() {
+      const container = document.getElementById('class-editor-area');
+      if (state.classes.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-8 px-4 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+            <p class="text-sm font-medium text-slate-700">Nog geen klassen aangemaakt</p>
+            <p class="text-xs text-slate-500 mt-1">Voeg hierboven je eerste klas toe om leerlingen in te voeren.</p>
+          </div>
+        `;
+        return;
+      }
+
+      if (!state.classes.some(c => c.id === state.activeClassId)) {
+        state.activeClassId = state.classes[0].id;
+      }
+
+      const activeClass = state.classes.find(c => c.id === state.activeClassId);
+
+      // Klas-pills bovenaan
+      const pillsHtml = state.classes.map(c => {
+        const isActive = c.id === activeClass.id;
+        return `
+          <button type="button" onclick="selectActiveClass('${c.id}')"
+            class="px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 border ${
+              isActive
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+            }">
+            <span>${escapeHtml(c.name)}</span>
+            <span class="px-1.5 py-0.2 rounded-full text-[10px] ${isActive ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-600'}">
+              ${c.students.length}
+            </span>
+          </button>
+        `;
+      }).join('');
+
+      // Leerlingenlijst van actieve klas
+      const studentsHtml = activeClass.students.length === 0
+        ? `<p class="text-xs text-slate-400 italic py-4 text-center">Nog geen leerlingen in ${escapeHtml(activeClass.name)}.</p>`
+        : activeClass.students.map((student, idx) => `
+          <div class="flex items-center justify-between py-1.5 px-2.5 bg-white border border-slate-200 rounded-lg group hover:border-slate-300">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="text-[11px] font-mono text-slate-400 w-5 text-right shrink-0">${idx + 1}.</span>
+              <span class="text-xs font-medium text-slate-800 truncate">${escapeHtml(student)}</span>
+            </div>
+            <div class="flex items-center gap-0.5 shrink-0 opacity-80 group-hover:opacity-100">
+              <button type="button" onclick="moveStudent(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} title="Omhoog" class="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-25">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+              </button>
+              <button type="button" onclick="moveStudent(${idx}, 1)" ${idx === activeClass.students.length - 1 ? 'disabled' : ''} title="Omlaag" class="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-25">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+              </button>
+              <button type="button" onclick="editStudent(${idx})" title="Naam wijzigen" class="p-1 text-slate-400 hover:text-indigo-600">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+              </button>
+              <button type="button" onclick="removeStudent(${idx})" title="Verwijderen" class="p-1 text-slate-400 hover:text-rose-600">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+          </div>
+        `).join('');
+
+      container.innerHTML = `
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-2">Kies klas om te bewerken</label>
+          <div class="flex flex-wrap gap-1.5">
+            ${pillsHtml}
+          </div>
+        </div>
+
+        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
+          <div class="flex items-center justify-between border-b border-slate-200 pb-2.5">
+            <div>
+              <h4 class="text-sm font-bold text-slate-900">Klas ${escapeHtml(activeClass.name)}</h4>
+              <p class="text-[11px] text-slate-500">${activeClass.students.length} leerling(en)</p>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button type="button" onclick="sortStudentsAlpha()" class="px-2 py-1 text-[11px] font-medium bg-white border border-slate-300 rounded-md hover:bg-slate-100 text-slate-700" title="Sorteer A-Z">
+                A-Z
+              </button>
+              <button type="button" onclick="renameClass('${activeClass.id}')" class="px-2 py-1 text-[11px] font-medium bg-white border border-slate-300 rounded-md hover:bg-slate-100 text-slate-700">
+                Hernoem
+              </button>
+              <button type="button" onclick="deleteClass('${activeClass.id}')" class="px-2 py-1 text-[11px] font-medium bg-white border border-rose-200 rounded-md hover:bg-rose-50 text-rose-600">
+                Verwijder
+              </button>
+            </div>
+          </div>
+
+          <!-- Eén leerling toevoegen -->
+          <form onsubmit="addSingleStudent(event)" class="flex gap-2">
+            <input type="text" id="single-student-input" placeholder="Naam van leerling toevoegen..." class="flex-1 px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <button type="submit" class="px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition shrink-0">
+              Toevoegen
+            </button>
+          </form>
+
+          <!-- Meerdere leerlingen plakken -->
+          <details class="group">
+            <summary class="text-xs font-medium text-indigo-600 hover:text-indigo-700 cursor-pointer select-none flex items-center gap-1">
+              <span>+ Meerdere namen tegelijk plakken (uit Excel / Smartschool)</span>
+            </summary>
+            <div class="mt-2 space-y-2">
+              <textarea id="bulk-students-input" rows="4" placeholder="Plak hier een lijst met één naam per regel..." class="w-full p-2.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+              <button type="button" onclick="addBulkStudents()" class="w-full py-1.5 text-xs font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-lg transition">
+                Lijst toevoegen aan ${escapeHtml(activeClass.name)}
+              </button>
+            </div>
+          </details>
+
+          <!-- Lijst van leerlingen -->
+          <div class="space-y-1 max-h-64 overflow-y-auto pr-1">
+            ${studentsHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    // --- PRINTVOLGORDE & INSTELLINGEN ---
+
+    function toggleClassSelection(id) {
+      const cls = state.classes.find(c => c.id === id);
+      if (!cls) return;
+      cls.selected = !cls.selected;
+      saveState();
+      renderPrintSettings();
+      renderPreview();
+    }
+
+    function moveClassOrder(index, direction) {
+      const newIndex = index + direction;
+      if (newIndex < 0 || newIndex >= state.classes.length) return;
+      const [moved] = state.classes.splice(index, 1);
+      state.classes.splice(newIndex, 0, moved);
+      saveState();
+      renderAll();
+    }
+
+    // Drag & Drop handlers voor klasvolgorde
+    function handleDragStart(e, index) {
+      dragSourceIndex = index;
+      e.dataTransfer.effectAllowed = 'move';
+      e.currentTarget.classList.add('opacity-50');
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+
+    function handleDrop(e, targetIndex) {
+      e.preventDefault();
+      if (dragSourceIndex === null || dragSourceIndex === targetIndex) return;
+      const [moved] = state.classes.splice(dragSourceIndex, 1);
+      state.classes.splice(targetIndex, 0, moved);
+      dragSourceIndex = null;
+      saveState();
+      renderAll();
+    }
+
+    function handleDragEnd(e) {
+      e.currentTarget.classList.remove('opacity-50');
+      dragSourceIndex = null;
+    }
+
+    function updateSetting(key, value) {
+      state.settings[key] = value;
+      saveState();
+      renderPrintSettings();
+      renderPreview();
+    }
+
+    function renderPrintSettings() {
+      document.getElementById('setting-title').value = state.settings.title;
+      document.getElementById('setting-teacher').value = state.settings.teacher;
+      document.getElementById('setting-period').value = state.settings.period;
+      document.getElementById('setting-showClassCol').checked = state.settings.showClassCol;
+      document.getElementById('setting-continuousNumbering').checked = state.settings.continuousNumbering;
+      document.getElementById('setting-colCount').value = state.settings.colCount;
+      document.getElementById('col-count-label').textContent = state.settings.colCount;
+      document.getElementById('setting-extraRows').value = state.settings.extraRows;
+      document.getElementById('extra-rows-label').textContent = state.settings.extraRows;
+
+      // Page mode buttons
+      const btnCont = document.getElementById('mode-continuous');
+      const btnPage = document.getElementById('mode-pagePerClass');
+      if (state.settings.pageMode === 'continuous') {
+        btnCont.className = 'px-3 py-2 text-xs font-semibold rounded-lg border border-indigo-600 bg-indigo-50 text-indigo-700 text-center transition';
+        btnPage.className = 'px-3 py-2 text-xs font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 text-center transition';
+      } else {
+        btnPage.className = 'px-3 py-2 text-xs font-semibold rounded-lg border border-indigo-600 bg-indigo-50 text-indigo-700 text-center transition';
+        btnCont.className = 'px-3 py-2 text-xs font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 text-center transition';
+      }
+
+      // Klasvolgorde lijst
+      const listEl = document.getElementById('print-order-list');
+      if (state.classes.length === 0) {
+        listEl.innerHTML = `<p class="text-xs text-slate-400 italic">Voeg eerst klassen toe in het eerste tabblad.</p>`;
+        return;
+      }
+
+      listEl.innerHTML = state.classes.map((cls, idx) => `
+        <div draggable="true"
+             ondragstart="handleDragStart(event, ${idx})"
+             ondragover="handleDragOver(event)"
+             ondrop="handleDrop(event, ${idx})"
+             ondragend="handleDragEnd(event)"
+             class="flex items-center justify-between p-2.5 rounded-xl border transition cursor-grab active:cursor-grabbing ${
+               cls.selected ? 'bg-white border-indigo-200 shadow-2xs' : 'bg-slate-50 border-slate-200 opacity-70'
+             }">
+          <label class="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0">
+            <svg class="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 8h16M4 16h16"/>
+            </svg>
+            <input type="checkbox" ${cls.selected ? 'checked' : ''} onchange="toggleClassSelection('${cls.id}')" class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
+            <span class="text-xs font-bold text-slate-800 truncate">${escapeHtml(cls.name)}</span>
+            <span class="text-[11px] text-slate-500">(${cls.students.length} lln.)</span>
+          </label>
+          <div class="flex items-center gap-1 shrink-0">
+            <button type="button" onclick="moveClassOrder(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} title="Eerder op het blad" class="p-1 rounded hover:bg-slate-100 text-slate-500 disabled:opacity-25">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+            </button>
+            <button type="button" onclick="moveClassOrder(${idx}, 1)" ${idx === state.classes.length - 1 ? 'disabled' : ''} title="Later op het blad" class="p-1 rounded hover:bg-slate-100 text-slate-500 disabled:opacity-25">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // --- LIVE PRINTVOORBEELD RENDERING ---
+
+    function saveHeaderCellNote(key, el) {
+      state.settings.headerNotes[key] = el.innerText.trim();
+      saveState();
+    }
+
+    function clearHeaderNotes() {
+      state.settings.headerNotes = {};
+      saveState();
+      renderPreview();
+      showToast('Alle vooringevulde kopvakjes gewist');
+    }
+
+    function buildTableHtml(scopeId, rowsData, subtitleClassLabel) {
+      const colCount = state.settings.colCount;
+      const showClassCol = state.settings.showClassCol;
+      const notes = state.settings.headerNotes || {};
+
+      // Genereer de 3 lege koprijen (omschrijving, datum, max) zonder tekstlabels
+      let descCells = '';
+      let dateCells = '';
+      let maxCells = '';
+
+      for (let c = 0; c < colCount; c++) {
+        const descKey = `${scopeId}_desc_${c}`;
+        const dateKey = `${scopeId}_date_${c}`;
+        const maxKey = `${scopeId}_max_${c}`;
+
+        descCells += `<th class="editable-header-cell" contenteditable="true" onblur="saveHeaderCellNote('${descKey}', this)">${escapeHtml(notes[descKey] || '')}</th>`;
+        dateCells += `<th class="editable-header-cell" contenteditable="true" onblur="saveHeaderCellNote('${dateKey}', this)">${escapeHtml(notes[dateKey] || '')}</th>`;
+        maxCells += `<th class="editable-header-cell" contenteditable="true" onblur="saveHeaderCellNote('${maxKey}', this)">${escapeHtml(notes[maxKey] || '')}</th>`;
+      }
+
+      // Lichaam van de tabel
+      let emptyEvalCells = '';
+      for (let c = 0; c < colCount; c++) {
+        emptyEvalCells += `<td></td>`;
+      }
+
+      const totalCols = (showClassCol ? 3 : 2) + colCount;
+
+      const bodyRowsHtml = rowsData.map(row => {
+        if (row.type === 'divider') {
+          return `
+            <tr class="class-divider-row">
+              <td colspan="${totalCols}">Klas ${escapeHtml(row.className)}</td>
+            </tr>
+          `;
+        }
+        return `
+          <tr>
+            <td class="cell-text-nr">${row.nr}</td>
+            ${showClassCol ? `<td class="cell-text-class">${escapeHtml(row.className)}</td>` : ''}
+            <td class="cell-text-name">${escapeHtml(row.name)}</td>
+            ${emptyEvalCells}
+          </tr>
+        `;
+      }).join('');
+
+      // Meta-info rechtsboven
+      const metaParts = [];
+      if (subtitleClassLabel) metaParts.push(`<span><strong>Klas:</strong> ${escapeHtml(subtitleClassLabel)}</span>`);
+      if (state.settings.teacher) metaParts.push(`<span><strong>Leerkracht:</strong> ${escapeHtml(state.settings.teacher)}</span>`);
+      if (state.settings.period) metaParts.push(`<span><strong>Periode:</strong> ${escapeHtml(state.settings.period)}</span>`);
+
+      return `
+        <div class="flex items-end justify-between border-b-2 border-slate-900 pb-1.5 mb-2.5 gap-4">
+          <h2 class="text-base font-bold text-slate-900 tracking-tight">${escapeHtml(state.settings.title || 'Puntenboek')}</h2>
+          <div class="flex items-center gap-4 text-xs text-slate-700">
+            ${metaParts.join('')}
+          </div>
+        </div>
+
+        <table class="grade-table">
+          <thead>
+            <tr class="row-desc">
+              <th rowspan="3" class="col-nr">Nr.</th>
+              ${showClassCol ? `<th rowspan="3" class="col-class">Klas</th>` : ''}
+              <th rowspan="3" class="col-name">Naam leerling</th>
+              ${descCells}
+            </tr>
+            <tr class="row-date">
+              ${dateCells}
+            </tr>
+            <tr class="row-max">
+              ${maxCells}
+            </tr>
+          </thead>
+          <tbody>
+            ${bodyRowsHtml}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function renderPreview() {
+      const container = document.getElementById('print-sheets-container');
+      const summaryEl = document.getElementById('preview-summary-text');
+      const selectedClasses = state.classes.filter(c => c.selected);
+
+      if (selectedClasses.length === 0) {
+        summaryEl.textContent = '0 klassen geselecteerd';
+        container.innerHTML = `
+          <div class="a4-landscape-sheet shadow-md rounded-sm flex flex-col items-center justify-center text-center p-10 border border-slate-300">
+            <p class="text-base font-semibold text-slate-700">Geen klassen geselecteerd voor het puntenboek</p>
+            <p class="text-xs text-slate-500 mt-1 max-w-md">Ga naar tabblad <strong>"2. Bladopmaak & Volgorde"</strong> aan de linkerkant en vink één of meerdere klassen aan.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const totalStudents = selectedClasses.reduce((sum, c) => sum + c.students.length, 0);
+      summaryEl.textContent = `${selectedClasses.length} klas(sen) • ${totalStudents} leerlingen • ${state.settings.colCount} evaluatiekolommen`;
+
+      if (state.settings.pageMode === 'pagePerClass') {
+        // Elke geselecteerde klas op een eigen A4-blad
+        container.innerHTML = selectedClasses.map((cls, cIdx) => {
+          const rows = cls.students.map((st, sIdx) => ({
+            type: 'student',
+            nr: sIdx + 1,
+            className: cls.name,
+            name: st
+          }));
+
+          for (let e = 0; e < state.settings.extraRows; e++) {
+            rows.push({
+              type: 'student',
+              nr: '',
+              className: '',
+              name: ''
+            });
+          }
+
+          return `
+            <section class="a4-landscape-sheet print-section-block shadow-md border border-slate-300 ${cIdx > 0 ? 'page-break-before' : ''}">
+              ${buildTableHtml(cls.id, rows, cls.name)}
+            </section>
+          `;
+        }).join('');
+      } else {
+        // Alle geselecteerde klassen op één doorlopende lijst
+        const rows = [];
+        let runningCounter = 1;
+
+        selectedClasses.forEach((cls, cIdx) => {
+          if (selectedClasses.length > 1) {
+            rows.push({ type: 'divider', className: cls.name });
+          }
+
+          cls.students.forEach((st, sIdx) => {
+            rows.push({
+              type: 'student',
+              nr: state.settings.continuousNumbering ? runningCounter++ : sIdx + 1,
+              className: cls.name,
+              name: st
+            });
+          });
+        });
+
+        for (let e = 0; e < state.settings.extraRows; e++) {
+          rows.push({
+            type: 'student',
+            nr: '',
+            className: '',
+            name: ''
+          });
+        }
+
+        const classLabel = selectedClasses.map(c => c.name).join(', ');
+        container.innerHTML = `
+          <section class="a4-landscape-sheet print-section-block shadow-md border border-slate-300">
+            ${buildTableHtml('continuous', rows, classLabel)}
+          </section>
+        `;
+      }
+    }
+
+    function renderAll() {
+      renderClassEditor();
+      renderPrintSettings();
+      renderPreview();
+    }
+
+    // --- BACK-UP EXPORT / IMPORT / WISSEN ---
+
+    function exportBackup() {
+      const dataStr = JSON.stringify(state, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `puntenboek-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Back-upbestand gedownload');
+    }
+
+    function importBackup(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (!Array.isArray(parsed.classes)) throw new Error('Ongeldig formaat');
+          state = {
+            classes: parsed.classes,
+            activeClassId: parsed.activeClassId || (parsed.classes[0] ? parsed.classes[0].id : null),
+            settings: { ...DEFAULT_STATE.settings, ...(parsed.settings || {}) }
+          };
+          saveState();
+          renderAll();
+          showToast('Back-up succesvol ingeladen');
+        } catch (err) {
+          showToast('Fout: ongeldig JSON-bestand');
+        }
+        event.target.value = '';
+      };
+      reader.readAsText(file);
+    }
+
+    function confirmClearAll() {
+      openConfirmModal(
+        'Alle gegevens wissen',
+        'Weet je zeker dat je alle klassen, leerlingen en instellingen wilt wissen? Dit kan niet ongedaan worden gemaakt.',
+        () => {
+          state = {
+            classes: [],
+            activeClassId: null,
+            settings: JSON.parse(JSON.stringify(DEFAULT_STATE.settings))
+          };
+          saveState();
+          renderAll();
+          showToast('Alle gegevens gewist');
+        }
+      );
+    }
+
+    // --- CUSTOM MODAL HELPERS ---
+
+    function openConfirmModal(title, message, onConfirm) {
+      const modal = document.getElementById('custom-modal');
+      document.getElementById('modal-title').textContent = title;
+      document.getElementById('modal-message').textContent = message;
+      document.getElementById('modal-input-wrapper').classList.add('hidden');
+
+      const confirmBtn = document.getElementById('modal-confirm-btn');
+      confirmBtn.onclick = () => {
+        closeModal();
+        onConfirm();
+      };
+
+      modal.classList.remove('hidden');
+    }
+
+    function openPromptModal(title, message, defaultValue, onConfirm) {
+      const modal = document.getElementById('custom-modal');
+      const input = document.getElementById('modal-input');
+      document.getElementById('modal-title').textContent = title;
+      document.getElementById('modal-message').textContent = message;
+      document.getElementById('modal-input-wrapper').classList.remove('hidden');
+      input.value = defaultValue || '';
+
+      const confirmBtn = document.getElementById('modal-confirm-btn');
+      confirmBtn.onclick = () => {
+        const val = input.value;
+        closeModal();
+        onConfirm(val);
+      };
+
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          confirmBtn.click();
+        }
+      };
+
+      modal.classList.remove('hidden');
+      setTimeout(() => input.focus(), 50);
+    }
+
+    function closeModal() {
+      document.getElementById('custom-modal').classList.add('hidden');
+    }
+
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // Initialisatie
+    window.addEventListener('DOMContentLoaded', () => {
+      renderAll();
+    });
+  </script>
+</body>
+</html>
