@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Puntenboek Generator</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS voor het inlezen en genereren van Excel (.xlsx/.xls) en CSV bestanden -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -13,7 +15,7 @@
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
     }
 
-    /* Custom scrollbar voor zijbalken */
+    /* Subtiele scrollbars */
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
@@ -29,7 +31,7 @@
       background: #94a3b8;
     }
 
-    /* Printblad & Tabel opmaak (zowel op scherm als tijdens printen) */
+    /* Printblad & Tabel opmaak op liggend A4 */
     .a4-landscape-sheet {
       width: 297mm;
       min-height: 210mm;
@@ -53,14 +55,14 @@
       box-sizing: border-box;
     }
 
-    /* Koprijen zonder tekstlabels */
+    /* Koprijen zonder tekstlabels ('Wat', 'Datum', 'Max') */
     .grade-table thead th {
       background-color: #ffffff;
       font-weight: 600;
     }
 
     .grade-table thead tr.row-desc th {
-      height: 15mm; /* Hoger vak bovenaan voor omschrijving/onderwerp */
+      height: 15mm;
       border-bottom: 1px dashed #94a3b8;
       vertical-align: top;
       padding: 2px 3px;
@@ -72,7 +74,7 @@
     }
 
     .grade-table thead tr.row-date th {
-      height: 6.5mm; /* Middelste vak voor datum */
+      height: 6.5mm;
       border-top: none;
       border-bottom: 1px dashed #94a3b8;
       padding: 1px 2px;
@@ -83,7 +85,7 @@
     }
 
     .grade-table thead tr.row-max th {
-      height: 6.5mm; /* Onderste vak voor maximumscore */
+      height: 6.5mm;
       border-top: none;
       border-bottom: 1.5px solid #334155;
       background-color: #f8fafc;
@@ -110,7 +112,7 @@
     }
 
     .col-class {
-      width: 16mm;
+      width: 17mm;
       text-align: center;
     }
 
@@ -160,7 +162,6 @@
       color: #0f172a;
     }
 
-    /* Interactieve invulbare kopcellen op scherm */
     .editable-header-cell {
       cursor: text;
       transition: background-color 0.15s;
@@ -174,7 +175,6 @@
       background-color: #ffffff !important;
     }
 
-    /* Pagina-einde bij aparte pagina per klas */
     .page-break-before {
       break-before: page;
       page-break-before: always;
@@ -249,8 +249,8 @@
 </head>
 <body class="bg-slate-100 text-slate-800 h-screen flex flex-col overflow-hidden">
 
-  <!-- Bovenbalk (verborgen bij printen) -->
-  <header class="no-print bg-white border-b border-slate-200 px-5 py-3 flex flex-wrap items-center justify-between gap-4 shrink-0 z-10">
+  <!-- Bovenbalk -->
+  <header class="no-print bg-white border-b border-slate-200 px-5 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0 z-10">
     <div class="flex items-center gap-3">
       <div class="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-sm">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -259,40 +259,50 @@
       </div>
       <div>
         <h1 class="text-base font-bold text-slate-900 leading-tight">Puntenboek Generator</h1>
-        <p class="text-xs text-slate-500">Beheer klassen, kies de volgorde en print op liggend A4</p>
+        <p class="text-xs text-slate-500">Importeer Excel/CSV, stel klasgroepen samen en print op liggend A4</p>
       </div>
     </div>
 
-    <div class="flex items-center gap-2.5">
-      <button onclick="exportBackup()" title="Download een JSON back-up van je klassen en instellingen" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition">
+    <div class="flex flex-wrap items-center gap-2">
+      <!-- Excel / CSV Importeren -->
+      <button type="button" onclick="openImportModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        Excel / CSV importeren
+      </button>
+
+      <!-- JSON Back-up -->
+      <button type="button" onclick="exportBackup()" title="Download een JSON back-up van je klassen, klasgroepen en instellingen" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition">
         <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
         </svg>
-        Back-up opslaan
+        Back-up
       </button>
 
-      <label title="Herstel klassen vanuit een eerder opgeslagen JSON-bestand" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition cursor-pointer">
+      <label title="Herstel vanuit een eerder opgeslagen JSON back-upbestand" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition cursor-pointer">
         <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
         </svg>
-        Back-up laden
-        <input type="file" id="import-file-input" accept=".json" class="hidden" onchange="importBackup(event)">
+        Herstel
+        <input type="file" id="import-json-input" accept=".json" class="hidden" onchange="importBackup(event)">
       </label>
 
-      <button onclick="window.print()" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm transition">
+      <!-- Printen -->
+      <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm transition">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
         </svg>
-        Printen / Opslaan als PDF
+        Printen / PDF
       </button>
     </div>
   </header>
 
-  <!-- Hoofdindeling: Linker controlepaneel + Rechter printvoorbeeld -->
+  <!-- Hoofdindeling -->
   <div id="app-layout" class="flex-1 flex flex-col lg:flex-row overflow-hidden">
 
-    <!-- LINKERPANEEL: Beheer & Printinstellingen -->
-    <aside class="no-print w-full lg:w-[410px] xl:w-[440px] bg-white border-r border-slate-200 flex flex-col shrink-0 h-1/2 lg:h-full">
+    <!-- LINKERPANEEL -->
+    <aside class="no-print w-full lg:w-[430px] xl:w-[460px] bg-white border-r border-slate-200 flex flex-col shrink-0 h-1/2 lg:h-full">
       <!-- Tabbladen -->
       <div class="flex border-b border-slate-200 bg-slate-50/70 px-3 pt-2 gap-1 shrink-0">
         <button id="tab-btn-classes" onclick="switchTab('classes')" class="flex-1 py-2.5 px-3 text-xs font-semibold rounded-t-lg border-b-2 border-indigo-600 text-indigo-600 bg-white transition flex items-center justify-center gap-1.5">
@@ -303,47 +313,81 @@
         </button>
         <button id="tab-btn-print" onclick="switchTab('print')" class="flex-1 py-2.5 px-3 text-xs font-semibold rounded-t-lg border-b-2 border-transparent text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1.5">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
-          2. Bladopmaak & Volgorde
+          2. Klasgroepen & Opmaak
         </button>
       </div>
 
       <!-- TAB 1: KLASSEN & LEERLINGEN BEHEER -->
-      <div id="tab-panel-classes" class="flex-1 overflow-y-auto p-4 space-y-5">
-        <!-- Nieuwe klas aanmaken -->
-        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-          <label class="block text-xs font-semibold text-slate-700 mb-2">Nieuwe klas toevoegen</label>
+      <div id="tab-panel-classes" class="flex-1 overflow-y-auto p-4 space-y-4">
+        <!-- Snel starten: Import of handmatige klas -->
+        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold text-slate-700">Klas toevoegen of inlezen</span>
+            <button type="button" onclick="openImportModal()" class="text-xs font-semibold text-emerald-700 hover:text-emerald-800 underline flex items-center gap-1">
+              Importeren uit Excel / CSV
+            </button>
+          </div>
           <form onsubmit="addClass(event)" class="flex gap-2">
-            <input type="text" id="new-class-name" placeholder="Bijv. 4HW, 5EMT, 3LAT..." required class="flex-1 px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            <input type="text" id="new-class-name" placeholder="Klasnaam (bijv. 4HW, 3SPWE+...)" required class="flex-1 px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
             <button type="submit" class="px-3.5 py-2 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition shrink-0">
               + Klas
             </button>
           </form>
         </div>
 
-        <!-- Klas selector & leerlingenlijst -->
+        <!-- Klassenlijst & leerlingen -->
         <div id="class-editor-area" class="space-y-4">
-          <!-- Dynamisch ingevuld via JS -->
+          <!-- Dynamisch ingevuld -->
         </div>
 
-        <!-- Reset knop onderaan -->
+        <!-- Footer met opslaginfo en alles wissen -->
         <div class="pt-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-          <span>Automatisch opgeslagen in browser</span>
-          <button onclick="confirmClearAll()" class="text-rose-600 hover:text-rose-700 font-medium underline">
+          <span>Lokaal bewaard in je browser</span>
+          <button type="button" onclick="confirmClearAll()" class="text-rose-600 hover:text-rose-700 font-medium underline">
             Alles wissen
           </button>
         </div>
       </div>
 
-      <!-- TAB 2: PRINTSELECTIE & VOLGORDE -->
+      <!-- TAB 2: KLASGROEPEN, VOLGORDE & BLADOPMAAK -->
       <div id="tab-panel-print" class="hidden flex-1 overflow-y-auto p-4 space-y-5">
-        <!-- Titel & Kopgegevens -->
+
+        <!-- KLASGROEPEN BEHEER -->
+        <div class="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-200 space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-900">Klasgroepen</h3>
+              <p class="text-[11px] text-indigo-700/80">Bewaar combinaties & volgordes van klassen</p>
+            </div>
+            <button type="button" onclick="saveNewClassGroup()" class="px-2.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-2xs transition">
+              + Huidige selectie opslaan
+            </button>
+          </div>
+
+          <div id="class-groups-list" class="space-y-1.5">
+            <!-- Dynamisch ingevuld -->
+          </div>
+        </div>
+
+        <!-- KLASSEN SELECTEREN & VOLGORDE BEPALEN -->
+        <div class="space-y-2.5">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Actieve klassen & volgorde</h3>
+            <span class="text-[11px] text-slate-400">Vink aan & versleep of klik pijltjes</span>
+          </div>
+          <div id="print-order-list" class="space-y-1.5">
+            <!-- Dynamisch ingevuld -->
+          </div>
+        </div>
+
+        <!-- TITEL & KOPGEGEVENS -->
         <div class="space-y-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Titel & Koptekst</h3>
           <div>
             <label class="block text-xs font-medium text-slate-700 mb-1">Hoofdtitel puntenboek</label>
-            <input type="text" id="setting-title" oninput="updateSetting('title', this.value)" placeholder="Bijv. Puntenboek Nederlands — 2026-2027" class="w-full px-3 py-1.5 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <input type="text" id="setting-title" oninput="updateSetting('title', this.value)" placeholder="Bijv. Puntenboek Nederlands" class="w-full px-3 py-1.5 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
@@ -357,18 +401,7 @@
           </div>
         </div>
 
-        <!-- Klassen selecteren en volgorde bepalen -->
-        <div class="space-y-2.5">
-          <div class="flex items-center justify-between">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Klassen & Volgorde op blad</h3>
-            <span class="text-[11px] text-slate-400">Vink aan & versleep of klik pijltjes</span>
-          </div>
-          <div id="print-order-list" class="space-y-1.5">
-            <!-- Dynamisch ingevuld via JS -->
-          </div>
-        </div>
-
-        <!-- Pagina-indeling & Kolommen -->
+        <!-- PAGINA-INDELING & KOLOMMEN -->
         <div class="space-y-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Indeling & Evaluatiekolommen</h3>
 
@@ -416,8 +449,8 @@
           </div>
 
           <div class="pt-2 border-t border-slate-200 flex items-center justify-between">
-            <span class="text-[11px] text-slate-500">Tip: Klik op de bovenste vakjes in het voorbeeld rechts om toetsen alvast digitaal in te vullen.</span>
-            <button onclick="clearHeaderNotes()" class="text-[11px] text-slate-600 hover:text-rose-600 font-medium underline shrink-0 ml-2">
+            <span class="text-[11px] text-slate-500">Klik in de bovenste vakjes rechts om optioneel toetsen vooraf in te vullen.</span>
+            <button type="button" onclick="clearHeaderNotes()" class="text-[11px] text-slate-600 hover:text-rose-600 font-medium underline shrink-0 ml-2">
               Kopvakjes wissen
             </button>
           </div>
@@ -440,14 +473,119 @@
         </div>
       </div>
 
-      <!-- Hier wordt het printbare puntenboek gerenderd -->
+      <!-- Printbaar puntenboek -->
       <div id="print-sheets-container" class="space-y-6 pb-10">
         <!-- Dynamisch gegenereerd -->
       </div>
     </main>
   </div>
 
-  <!-- Custom Modal / Bevestigingsdialoog (geen window.alert / window.confirm) -->
+  <!-- MODAL: EXCEL / CSV IMPORTEREN -->
+  <div id="import-modal" class="no-print hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-slate-200 overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div>
+          <h3 class="text-base font-bold text-slate-900">Klassen & leerlingen importeren</h3>
+          <p class="text-xs text-slate-500">Ondersteunt Excel (.xlsx, .xls), CSV en TXT bestanden</p>
+        </div>
+        <button type="button" onclick="closeImportModal()" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-4 flex-1">
+        <!-- Bestand kiezen & voorbeeldsjabloon -->
+        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between bg-emerald-50/70 border border-emerald-200 rounded-xl p-3.5">
+          <div class="text-xs text-emerald-900">
+            <p class="font-semibold">Nog geen bestand klaarstaan?</p>
+            <p class="text-emerald-700 mt-0.5">Download een kant-en-klaar Excel-sjabloon met de juiste kolommen.</p>
+          </div>
+          <button type="button" onclick="downloadExcelTemplate()" class="px-3.5 py-2 text-xs font-semibold text-emerald-800 bg-white border border-emerald-300 rounded-lg hover:bg-emerald-50 shadow-2xs transition shrink-0">
+            Download voorbeeldsjabloon (.xlsx)
+          </button>
+        </div>
+
+        <!-- Dropzone -->
+        <label id="file-dropzone" class="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-xl p-6 text-center cursor-pointer bg-slate-50/50 hover:bg-indigo-50/30 transition">
+          <svg class="w-8 h-8 text-indigo-500 mb-2" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+          <span class="text-sm font-semibold text-slate-800" id="import-file-label">Klik om een Excel-, CSV- of TXT-bestand te kiezen</span>
+          <span class="text-xs text-slate-500 mt-1">Of sleep het bestand hierheen (.xlsx, .xls, .csv, .txt)</span>
+          <input type="file" id="spreadsheet-file-input" accept=".xlsx,.xls,.csv,.txt" class="hidden" onchange="handleSpreadsheetUpload(event)">
+        </label>
+
+        <!-- Kolomkoppeling & Preview (verschijnt na uploaden) -->
+        <div id="import-mapping-section" class="hidden space-y-4 pt-2 border-t border-slate-200">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Tabblad in bestand</label>
+              <select id="import-sheet-select" onchange="onImportSheetChange()" class="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+            </div>
+            <div class="flex items-end pb-1">
+              <label class="inline-flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
+                <input type="checkbox" id="import-has-header" onchange="reparseImportPreview()" class="w-4 h-4 text-indigo-600 rounded border-slate-300">
+                Eerste rij bevat kolomtitels
+              </label>
+            </div>
+          </div>
+
+          <!-- Kolomtoewijzing -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-700 mb-1">Kolom: Klas</label>
+              <select id="map-col-class" onchange="updateImportPreviewList()" class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg"></select>
+              <input type="text" id="map-fallback-class" oninput="updateImportPreviewList()" placeholder="Of vaste klasnaam (bijv. 4HW)" class="hidden mt-1.5 w-full px-2.5 py-1 text-xs bg-white border border-slate-300 rounded-lg">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-700 mb-1">Kolom: Familienaam (of Volledige naam)</label>
+              <select id="map-col-lastname" onchange="updateImportPreviewList()" class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg"></select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-700 mb-1">Kolom: Voornaam (optioneel)</label>
+              <select id="map-col-firstname" onchange="updateImportPreviewList()" class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg"></select>
+            </div>
+          </div>
+
+          <!-- Importmodus -->
+          <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <span class="text-xs font-semibold text-slate-700">Bij bestaande klassen:</span>
+            <div class="flex items-center gap-4 text-xs">
+              <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                <input type="radio" name="import-mode" value="merge" checked class="text-indigo-600">
+                <span>Samenvoegen (dubbels overslaan)</span>
+              </label>
+              <label class="inline-flex items-center gap-1.5 cursor-pointer">
+                <input type="radio" name="import-mode" value="replace" class="text-indigo-600">
+                <span>Bestaande klas vervangen</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Voorvertoning van herkende klassen en leerlingen -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-bold text-slate-800">Voorvertoning te importeren gegevens</span>
+              <span id="import-preview-badge" class="text-xs font-semibold text-indigo-600"></span>
+            </div>
+            <div id="import-preview-box" class="max-h-44 overflow-y-auto border border-slate-200 rounded-xl p-3 bg-white text-xs space-y-2">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-5 py-3.5 border-t border-slate-200 bg-slate-50 flex justify-end gap-2">
+        <button type="button" onclick="closeImportModal()" class="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg transition">
+          Annuleren
+        </button>
+        <button type="button" id="confirm-import-btn" onclick="executeSpreadsheetImport()" disabled class="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg transition">
+          Gegevens importeren
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Modal / Bevestigingsdialoog -->
   <div id="custom-modal" class="no-print hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-5 space-y-4 border border-slate-200">
       <h3 id="modal-title" class="text-base font-bold text-slate-900">Bevestigen</h3>
@@ -471,59 +609,16 @@
   </div>
 
   <script>
-    const STORAGE_KEY = 'puntenboek_generator_v1';
+    const STORAGE_KEY = 'puntenboek_generator_v2';
 
-    // Standaard voorbeeldgegevens bij eerste gebruik
-    const DEFAULT_STATE = {
-      classes: [
-        {
-          id: 'cls_1',
-          name: '4HW',
-          selected: true,
-          students: [
-            'Aerts Lucas',
-            'Claes Emma',
-            'De Smet Noah',
-            'Dubois Mila',
-            'Jacobs Liam',
-            'Janssens Louise',
-            'Maes Arthur',
-            'Peeters Olivia',
-            'Van Damme Finn',
-            'Willems Noor'
-          ]
-        },
-        {
-          id: 'cls_2',
-          name: '4EMT',
-          selected: true,
-          students: [
-            'Bogaert Mats',
-            'Coppens Elena',
-            'De Vries Victor',
-            'Goossens Lotte',
-            'Hendrickx Jules',
-            'Martens Amber',
-            'Mertens Louis',
-            'Vermeulen Camille'
-          ]
-        },
-        {
-          id: 'cls_3',
-          name: '3LAT',
-          selected: false,
-          students: [
-            'Baert Simon',
-            'Cools Hannah',
-            'Lauwers Matteo',
-            'Segers Marie',
-            'Stevens Leon'
-          ]
-        }
-      ],
-      activeClassId: 'cls_1',
+    // Volledig blanco startstatus zonder vooraf ingeladen namen
+    const BLANK_STATE = {
+      classes: [],
+      classGroups: [],
+      activeGroupId: null,
+      activeClassId: null,
       settings: {
-        title: 'Puntenboek Nederlands — 2026-2027',
+        title: 'Puntenboek',
         teacher: '',
         period: '',
         pageMode: 'continuous', // 'continuous' of 'pagePerClass'
@@ -531,25 +626,80 @@
         continuousNumbering: false,
         colCount: 12,
         extraRows: 2,
-        headerNotes: {} // Slaat optioneel ingevulde kopvakjes op per scope/kolom
+        headerNotes: {}
       }
     };
 
     let state = loadState();
-    let dragSourceIndex = null;
+    let dragClassOrderIndex = null;
+    let dragStudentIndex = null;
 
+    // Import-state
+    let currentWorkbook = null;
+    let currentRawRows = [];
+    let parsedImportData = []; // [{ className, students: [] }]
+
+    // --- ALFABETISCHE SORTERING OP FAMILIENAAM (INCL. TUSSENVOEGSELS) ---
+    const DUTCH_PREFIXES = [
+      'van der', 'van den', 'van de', 'van het', 'van \'t',
+      'in de', 'in den', 'in het', 'in \'t',
+      'op de', 'op den', 'op het', 'op \'t',
+      'de', 'den', 'der', 'des', 'du',
+      'van', 'vande', 'vanden', 'vander',
+      'ten', 'ter', 'te', 'el', 'al', 'ben', 'bint', 'da', 'di', 'dos', 'la', 'le', 'st', 'sint'
+    ];
+
+    function getSortKey(fullName) {
+      const clean = (fullName || '').trim();
+      if (!clean) return '';
+
+      // Als de naam met een apostrof start zoals D'HOORE
+      const withoutApostrophe = clean.replace(/^d['’]\s*/i, '');
+
+      // Zoek eventueel voorvoegsel aan het begin van de familienaam
+      const lower = withoutApostrophe.toLowerCase();
+      for (const prefix of DUTCH_PREFIXES) {
+        if (lower.startsWith(prefix + ' ')) {
+          const rest = withoutApostrophe.slice(prefix.length).trim();
+          return (rest + ' ' + prefix).toLowerCase();
+        }
+      }
+      return withoutApostrophe.toLowerCase();
+    }
+
+    function compareStudentsByLastName(a, b) {
+      const keyA = getSortKey(a);
+      const keyB = getSortKey(b);
+      const cmp = keyA.localeCompare(keyB, 'nl', { sensitivity: 'base' });
+      if (cmp !== 0) return cmp;
+      return a.localeCompare(b, 'nl', { sensitivity: 'base' });
+    }
+
+    function isClassSortedAlpha(students) {
+      if (students.length <= 1) return true;
+      for (let i = 0; i < students.length - 1; i++) {
+        if (compareStudentsByLastName(students[i], students[i + 1]) > 0) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // --- STATE OPSLAG ---
     function loadState() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return JSON.parse(JSON.stringify(DEFAULT_STATE));
+        if (!raw) return JSON.parse(JSON.stringify(BLANK_STATE));
         const parsed = JSON.parse(raw);
         return {
           classes: Array.isArray(parsed.classes) ? parsed.classes : [],
+          classGroups: Array.isArray(parsed.classGroups) ? parsed.classGroups : [],
+          activeGroupId: parsed.activeGroupId || null,
           activeClassId: parsed.activeClassId || (parsed.classes[0] ? parsed.classes[0].id : null),
-          settings: { ...DEFAULT_STATE.settings, ...(parsed.settings || {}) }
+          settings: { ...BLANK_STATE.settings, ...(parsed.settings || {}) }
         };
       } catch (e) {
-        return JSON.parse(JSON.stringify(DEFAULT_STATE));
+        return JSON.parse(JSON.stringify(BLANK_STATE));
       }
     }
 
@@ -570,10 +720,10 @@
       toast._timer = setTimeout(() => {
         toast.classList.remove('opacity-100');
         toast.classList.add('opacity-0');
-      }, 2600);
+      }, 2800);
     }
 
-    // Tabbladen wisselen
+    // --- TABBLADEN ---
     function switchTab(tab) {
       const btnClasses = document.getElementById('tab-btn-classes');
       const btnPrint = document.getElementById('tab-btn-print');
@@ -597,8 +747,328 @@
       }
     }
 
-    // --- KLASSEN & LEERLINGEN BEHEER ---
+    // --- EXCEL / CSV IMPORT LOGICA ---
+    function openImportModal() {
+      currentWorkbook = null;
+      currentRawRows = [];
+      parsedImportData = [];
+      document.getElementById('spreadsheet-file-input').value = '';
+      document.getElementById('import-file-label').textContent = 'Klik om een Excel-, CSV- of TXT-bestand te kiezen';
+      document.getElementById('import-mapping-section').classList.add('hidden');
+      document.getElementById('confirm-import-btn').disabled = true;
+      document.getElementById('import-modal').classList.remove('hidden');
+    }
 
+    function closeImportModal() {
+      document.getElementById('import-modal').classList.add('hidden');
+    }
+
+    function downloadExcelTemplate() {
+      if (typeof XLSX === 'undefined') {
+        showToast('Excel-bibliotheek wordt geladen, probeer zo opnieuw.');
+        return;
+      }
+      const wsData = [
+        ['Klas', 'Familienaam', 'Voornaam'],
+        ['4HW', 'Janssens', 'Louise'],
+        ['4HW', 'Peeters', 'Noah'],
+        ['4EMT', 'De Smet', 'Emma'],
+        ['4EMT', 'Van Damme', 'Lucas']
+      ];
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      ws['!cols'] = [{ wch: 14 }, { wch: 22 }, { wch: 18 }];
+      XLSX.utils.book_append_sheet(wb, ws, 'Klassen');
+      XLSX.writeFile(wb, 'voorbeeld_klassen.xlsx');
+      showToast('Voorbeeldsjabloon gedownload');
+    }
+
+    function handleSpreadsheetUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      if (typeof XLSX === 'undefined') {
+        showToast('Excel-bibliotheek niet beschikbaar.');
+        return;
+      }
+
+      document.getElementById('import-file-label').textContent = `Geselecteerd: ${file.name}`;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          currentWorkbook = XLSX.read(data, { type: 'array' });
+
+          const sheetSelect = document.getElementById('import-sheet-select');
+          sheetSelect.innerHTML = '';
+
+          // Voeg optie toe om alle tabbladen samen in te lezen als er meerdere zijn
+          if (currentWorkbook.SheetNames.length > 1) {
+            const allOpt = document.createElement('option');
+            allOpt.value = '__ALL_SHEETS__';
+            allOpt.textContent = `Alle tabbladen (${currentWorkbook.SheetNames.length} tabbladen — tabbladnaam = klas)`;
+            sheetSelect.appendChild(allOpt);
+          }
+
+          currentWorkbook.SheetNames.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            sheetSelect.appendChild(opt);
+          });
+
+          document.getElementById('import-mapping-section').classList.remove('hidden');
+          onImportSheetChange();
+        } catch (err) {
+          console.error(err);
+          showToast('Kon het bestand niet lezen. Controleer het bestandsformaat.');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function onImportSheetChange() {
+      if (!currentWorkbook) return;
+      const selectedSheet = document.getElementById('import-sheet-select').value;
+
+      if (selectedSheet === '__ALL_SHEETS__') {
+        // Combineer alle tabbladen waarbij de tabbladnaam als klas wordt gebruikt
+        const combined = [];
+        currentWorkbook.SheetNames.forEach(sheetName => {
+          const ws = currentWorkbook.Sheets[sheetName];
+          const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+            .filter(r => r.some(cell => String(cell).trim() !== ''));
+          rows.forEach((r, idx) => {
+            // Sla eventuele koprij per tabblad over
+            const firstCell = String(r[0] || '').trim().toLowerCase();
+            if (idx === 0 && (firstCell === 'naam' || firstCell === 'familienaam' || firstCell === 'leerling' || firstCell === 'klas')) {
+              return;
+            }
+            combined.push([sheetName, ...r]);
+          });
+        });
+        currentRawRows = combined;
+        document.getElementById('import-has-header').checked = false;
+      } else {
+        const ws = currentWorkbook.Sheets[selectedSheet];
+        currentRawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+          .filter(r => r.some(cell => String(cell).trim() !== ''));
+
+        // Automatisch detecteren of rij 1 een koprij is
+        if (currentRawRows.length > 0) {
+          const firstRowStr = currentRawRows[0].map(c => String(c).toLowerCase()).join(' ');
+          const looksLikeHeader = /(klas|groep|naam|voornaam|familienaam|achternaam|leerling|student)/.test(firstRowStr);
+          document.getElementById('import-has-header').checked = looksLikeHeader;
+        }
+      }
+
+      reparseImportPreview();
+    }
+
+    function reparseImportPreview() {
+      if (!currentRawRows || currentRawRows.length === 0) {
+        parsedImportData = [];
+        updateImportPreviewList();
+        return;
+      }
+
+      const hasHeader = document.getElementById('import-has-header').checked;
+      const maxCols = Math.max(...currentRawRows.map(r => r.length));
+
+      const headers = [];
+      for (let c = 0; c < maxCols; c++) {
+        const colLetter = XLSX.utils.encode_col(c);
+        const headerText = hasHeader && currentRawRows[0][c] ? String(currentRawRows[0][c]).trim() : '';
+        headers.push({
+          index: c,
+          label: headerText ? `Kolom ${colLetter} (${headerText})` : `Kolom ${colLetter}`,
+          rawHeader: headerText.toLowerCase()
+        });
+      }
+
+      // Vul de 3 kolom-dropdowns
+      const classSelect = document.getElementById('map-col-class');
+      const lastSelect = document.getElementById('map-col-lastname');
+      const firstSelect = document.getElementById('map-col-firstname');
+
+      classSelect.innerHTML = `<option value="__FALLBACK__">-- Gebruik vaste klasnaam --</option>` +
+        headers.map(h => `<option value="${h.index}">${escapeHtml(h.label)}</option>`).join('');
+
+      lastSelect.innerHTML = headers.map(h => `<option value="${h.index}">${escapeHtml(h.label)}</option>`).join('');
+
+      firstSelect.innerHTML = `<option value="__NONE__">-- Geen aparte kolom --</option>` +
+        headers.map(h => `<option value="${h.index}">${escapeHtml(h.label)}</option>`).join('');
+
+      // Slimme automatische kolomherkenning
+      let detectedClass = null;
+      let detectedLast = null;
+      let detectedFirst = null;
+
+      headers.forEach(h => {
+        if (detectedClass === null && /\b(klas|groep|afdeling|richting)\b/.test(h.rawHeader)) {
+          detectedClass = h.index;
+        } else if (detectedFirst === null && /\b(voornaam|first)\b/.test(h.rawHeader)) {
+          detectedFirst = h.index;
+        } else if (detectedLast === null && /\b(familienaam|achternaam|naam|leerling|student|last)\b/.test(h.rawHeader)) {
+          detectedLast = h.index;
+        }
+      });
+
+      // Fallback op basis van kolompositie als er geen koppen zijn
+      if (detectedClass === null && detectedLast === null && detectedFirst === null) {
+        if (maxCols >= 3) {
+          detectedClass = 0;
+          detectedLast = 1;
+          detectedFirst = 2;
+        } else if (maxCols === 2) {
+          detectedClass = 0;
+          detectedLast = 1;
+        } else if (maxCols === 1) {
+          detectedClass = '__FALLBACK__';
+          detectedLast = 0;
+        }
+      } else {
+        if (detectedClass === null) detectedClass = '__FALLBACK__';
+        if (detectedLast === null) {
+          const used = [detectedClass, detectedFirst];
+          const free = headers.find(h => !used.includes(h.index));
+          detectedLast = free ? free.index : 0;
+        }
+      }
+
+      classSelect.value = String(detectedClass);
+      lastSelect.value = String(detectedLast);
+      firstSelect.value = detectedFirst !== null ? String(detectedFirst) : '__NONE__';
+
+      // Stel standaard tabbladnaam voor als vaste klasnaam indien nodig
+      const sheetName = document.getElementById('import-sheet-select').value;
+      const fallbackInput = document.getElementById('map-fallback-class');
+      if (!fallbackInput.value && sheetName && sheetName !== '__ALL_SHEETS__') {
+        fallbackInput.value = sheetName;
+      }
+
+      updateImportPreviewList();
+    }
+
+    function updateImportPreviewList() {
+      const classColVal = document.getElementById('map-col-class').value;
+      const lastColIdx = parseInt(document.getElementById('map-col-lastname').value, 10);
+      const firstColVal = document.getElementById('map-col-firstname').value;
+      const hasHeader = document.getElementById('import-has-header').checked;
+      const fallbackInput = document.getElementById('map-fallback-class');
+
+      if (classColVal === '__FALLBACK__') {
+        fallbackInput.classList.remove('hidden');
+      } else {
+        fallbackInput.classList.add('hidden');
+      }
+
+      const startRow = hasHeader ? 1 : 0;
+      const classMap = new Map();
+
+      for (let r = startRow; r < currentRawRows.length; r++) {
+        const row = currentRawRows[r];
+        if (!row) continue;
+
+        let className = '';
+        if (classColVal === '__FALLBACK__') {
+          className = fallbackInput.value.trim() || 'Nieuwe klas';
+        } else {
+          className = String(row[parseInt(classColVal, 10)] || '').trim();
+        }
+
+        const lastName = String(row[lastColIdx] || '').trim();
+        const firstName = firstColVal !== '__NONE__' ? String(row[parseInt(firstColVal, 10)] || '').trim() : '';
+
+        if (!className || !lastName) continue;
+
+        // Combineer tot "FAMILIENAAM Voornaam" indien beide kolommen aanwezig zijn
+        const fullName = firstName
+          ? `${lastName.toUpperCase()} ${firstName}`
+          : lastName;
+
+        if (!classMap.has(className)) {
+          classMap.set(className, []);
+        }
+        classMap.get(className).push(fullName);
+      }
+
+      parsedImportData = Array.from(classMap.entries()).map(([className, students]) => {
+        const uniqueStudents = Array.from(new Set(students)).sort(compareStudentsByLastName);
+        return { className, students: uniqueStudents };
+      });
+
+      const previewBox = document.getElementById('import-preview-box');
+      const badge = document.getElementById('import-preview-badge');
+      const confirmBtn = document.getElementById('confirm-import-btn');
+
+      if (parsedImportData.length === 0) {
+        badge.textContent = '0 leerlingen herkend';
+        previewBox.innerHTML = `<p class="text-slate-400 italic">Geen geldige rijen gevonden met de huidige kolomkeuze.</p>`;
+        confirmBtn.disabled = true;
+        return;
+      }
+
+      const totalStudents = parsedImportData.reduce((acc, item) => acc + item.students.length, 0);
+      badge.textContent = `${parsedImportData.length} klas(sen) • ${totalStudents} leerlingen`;
+      confirmBtn.disabled = false;
+
+      previewBox.innerHTML = parsedImportData.map(item => `
+        <div class="border-b border-slate-100 last:border-none pb-2 last:pb-0">
+          <div class="flex items-center justify-between font-bold text-slate-800">
+            <span>Klas ${escapeHtml(item.className)}</span>
+            <span class="text-[11px] font-medium text-slate-500">${item.students.length} lln.</span>
+          </div>
+          <p class="text-[11px] text-slate-600 mt-0.5 truncate">
+            ${item.students.map(escapeHtml).join(', ')}
+          </p>
+        </div>
+      `).join('');
+    }
+
+    function executeSpreadsheetImport() {
+      if (parsedImportData.length === 0) return;
+
+      const mode = document.querySelector('input[name="import-mode"]:checked').value;
+      let addedClasses = 0;
+      let updatedClasses = 0;
+
+      parsedImportData.forEach(item => {
+        const existing = state.classes.find(c => c.name.toLowerCase() === item.className.toLowerCase());
+        if (existing) {
+          if (mode === 'replace') {
+            existing.students = [...item.students].sort(compareStudentsByLastName);
+          } else {
+            const merged = Array.from(new Set([...existing.students, ...item.students]));
+            existing.students = merged.sort(compareStudentsByLastName);
+          }
+          existing.selected = true;
+          updatedClasses++;
+        } else {
+          const newCls = {
+            id: 'cls_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            name: item.className,
+            selected: true,
+            students: [...item.students].sort(compareStudentsByLastName)
+          };
+          state.classes.push(newCls);
+          if (!state.activeClassId) state.activeClassId = newCls.id;
+          addedClasses++;
+        }
+      });
+
+      if (state.classes.length > 0 && !state.activeClassId) {
+        state.activeClassId = state.classes[0].id;
+      }
+
+      saveState();
+      closeImportModal();
+      renderAll();
+      showToast(`Import voltooid: ${addedClasses} nieuw, ${updatedClasses} bijgewerkt`);
+    }
+
+    // --- KLASSEN & LEERLINGEN BEHEER ---
     function addClass(e) {
       e.preventDefault();
       const input = document.getElementById('new-class-name');
@@ -646,6 +1116,10 @@
         `Weet je zeker dat je klas "${cls.name}" en alle ${cls.students.length} leerlingen wilt verwijderen?`,
         () => {
           state.classes = state.classes.filter(c => c.id !== id);
+          // Verwijder deze klas ook uit opgeslagen klasgroepen
+          state.classGroups.forEach(g => {
+            g.classIds = g.classIds.filter(cid => cid !== id);
+          });
           if (state.activeClassId === id) {
             state.activeClassId = state.classes[0] ? state.classes[0].id : null;
           }
@@ -664,7 +1138,11 @@
       const name = input.value.trim();
       if (!name) return;
 
+      const wasSorted = isClassSortedAlpha(cls.students);
       cls.students.push(name);
+      if (wasSorted) {
+        cls.students.sort(compareStudentsByLastName);
+      }
       input.value = '';
       saveState();
       renderAll();
@@ -677,12 +1155,16 @@
       const textarea = document.getElementById('bulk-students-input');
       const lines = textarea.value
         .split(/\r?\n/)
-        .map(line => line.replace(/^[\d]+[.)\-\s]+/, '').trim()) // Verwijdert eventuele voorloopnummers zoals "1. "
+        .map(line => line.replace(/^[\d]+[.)\-\s]+/, '').trim())
         .filter(line => line.length > 0);
 
       if (lines.length === 0) return;
 
+      const wasSorted = isClassSortedAlpha(cls.students);
       cls.students.push(...lines);
+      if (wasSorted) {
+        cls.students.sort(compareStudentsByLastName);
+      }
       textarea.value = '';
       saveState();
       renderAll();
@@ -692,10 +1174,10 @@
     function sortStudentsAlpha() {
       const cls = state.classes.find(c => c.id === state.activeClassId);
       if (!cls) return;
-      cls.students.sort((a, b) => a.localeCompare(b, 'nl', { sensitivity: 'base' }));
+      cls.students.sort(compareStudentsByLastName);
       saveState();
       renderAll();
-      showToast('Leerlingen alfabetisch gesorteerd');
+      showToast('Alfabetische volgorde op familienaam hersteld');
     }
 
     function editStudent(index) {
@@ -730,13 +1212,45 @@
       renderAll();
     }
 
+    // Drag & Drop voor leerlingen binnen een klas (handmatige override)
+    function handleStudentDragStart(e, index) {
+      dragStudentIndex = index;
+      e.dataTransfer.effectAllowed = 'move';
+      e.currentTarget.classList.add('opacity-50');
+    }
+
+    function handleStudentDragOver(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+
+    function handleStudentDrop(e, targetIndex) {
+      e.preventDefault();
+      if (dragStudentIndex === null || dragStudentIndex === targetIndex) return;
+      const cls = state.classes.find(c => c.id === state.activeClassId);
+      if (!cls) return;
+      const [moved] = cls.students.splice(dragStudentIndex, 1);
+      cls.students.splice(targetIndex, 0, moved);
+      dragStudentIndex = null;
+      saveState();
+      renderAll();
+    }
+
+    function handleStudentDragEnd(e) {
+      e.currentTarget.classList.remove('opacity-50');
+      dragStudentIndex = null;
+    }
+
     function renderClassEditor() {
       const container = document.getElementById('class-editor-area');
       if (state.classes.length === 0) {
         container.innerHTML = `
-          <div class="text-center py-8 px-4 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-            <p class="text-sm font-medium text-slate-700">Nog geen klassen aangemaakt</p>
-            <p class="text-xs text-slate-500 mt-1">Voeg hierboven je eerste klas toe om leerlingen in te voeren.</p>
+          <div class="text-center py-8 px-4 bg-slate-50 rounded-xl border border-dashed border-slate-300 space-y-3">
+            <p class="text-sm font-semibold text-slate-700">Nog geen klassen ingeladen</p>
+            <p class="text-xs text-slate-500">Voeg hierboven een klas toe of importeer een Excel/CSV-bestand met je klassen en leerlingen.</p>
+            <button type="button" onclick="openImportModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition">
+              Excel / CSV bestand kiezen
+            </button>
           </div>
         `;
         return;
@@ -747,8 +1261,8 @@
       }
 
       const activeClass = state.classes.find(c => c.id === state.activeClassId);
+      const isAlpha = isClassSortedAlpha(activeClass.students);
 
-      // Klas-pills bovenaan
       const pillsHtml = state.classes.map(c => {
         const isActive = c.id === activeClass.id;
         return `
@@ -766,12 +1280,17 @@
         `;
       }).join('');
 
-      // Leerlingenlijst van actieve klas
       const studentsHtml = activeClass.students.length === 0
         ? `<p class="text-xs text-slate-400 italic py-4 text-center">Nog geen leerlingen in ${escapeHtml(activeClass.name)}.</p>`
         : activeClass.students.map((student, idx) => `
-          <div class="flex items-center justify-between py-1.5 px-2.5 bg-white border border-slate-200 rounded-lg group hover:border-slate-300">
+          <div draggable="true"
+               ondragstart="handleStudentDragStart(event, ${idx})"
+               ondragover="handleStudentDragOver(event)"
+               ondrop="handleStudentDrop(event, ${idx})"
+               ondragend="handleStudentDragEnd(event)"
+               class="flex items-center justify-between py-1.5 px-2.5 bg-white border border-slate-200 rounded-lg group hover:border-slate-300 cursor-grab active:cursor-grabbing">
             <div class="flex items-center gap-2 min-w-0">
+              <svg class="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8h16M4 16h16"/></svg>
               <span class="text-[11px] font-mono text-slate-400 w-5 text-right shrink-0">${idx + 1}.</span>
               <span class="text-xs font-medium text-slate-800 truncate">${escapeHtml(student)}</span>
             </div>
@@ -801,15 +1320,23 @@
         </div>
 
         <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
-          <div class="flex items-center justify-between border-b border-slate-200 pb-2.5">
+          <div class="flex items-center justify-between border-b border-slate-200 pb-2.5 gap-2">
             <div>
-              <h4 class="text-sm font-bold text-slate-900">Klas ${escapeHtml(activeClass.name)}</h4>
-              <p class="text-[11px] text-slate-500">${activeClass.students.length} leerling(en)</p>
+              <div class="flex items-center gap-2">
+                <h4 class="text-sm font-bold text-slate-900">Klas ${escapeHtml(activeClass.name)}</h4>
+                ${isAlpha
+                  ? `<span class="px-1.5 py-0.5 text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 rounded">A–Z familienaam</span>`
+                  : `<span class="px-1.5 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 rounded">Aangepaste volgorde</span>`
+                }
+              </div>
+              <p class="text-[11px] text-slate-500 mt-0.5">${activeClass.students.length} leerling(en) • versleep om volgorde te wijzigen</p>
             </div>
-            <div class="flex items-center gap-1.5">
-              <button type="button" onclick="sortStudentsAlpha()" class="px-2 py-1 text-[11px] font-medium bg-white border border-slate-300 rounded-md hover:bg-slate-100 text-slate-700" title="Sorteer A-Z">
-                A-Z
-              </button>
+            <div class="flex items-center gap-1 shrink-0">
+              ${!isAlpha ? `
+                <button type="button" onclick="sortStudentsAlpha()" class="px-2 py-1 text-[11px] font-semibold bg-amber-50 border border-amber-300 rounded-md hover:bg-amber-100 text-amber-800" title="Herstel alfabetische sortering op familienaam">
+                  Herstel A–Z
+                </button>
+              ` : ''}
               <button type="button" onclick="renameClass('${activeClass.id}')" class="px-2 py-1 text-[11px] font-medium bg-white border border-slate-300 rounded-md hover:bg-slate-100 text-slate-700">
                 Hernoem
               </button>
@@ -821,7 +1348,7 @@
 
           <!-- Eén leerling toevoegen -->
           <form onsubmit="addSingleStudent(event)" class="flex gap-2">
-            <input type="text" id="single-student-input" placeholder="Naam van leerling toevoegen..." class="flex-1 px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <input type="text" id="single-student-input" placeholder="FAMILIENAAM Voornaam toevoegen..." class="flex-1 px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
             <button type="submit" class="px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition shrink-0">
               Toevoegen
             </button>
@@ -830,7 +1357,7 @@
           <!-- Meerdere leerlingen plakken -->
           <details class="group">
             <summary class="text-xs font-medium text-indigo-600 hover:text-indigo-700 cursor-pointer select-none flex items-center gap-1">
-              <span>+ Meerdere namen tegelijk plakken (uit Excel / Smartschool)</span>
+              <span>+ Meerdere namen plakken (één naam per regel)</span>
             </summary>
             <div class="mt-2 space-y-2">
               <textarea id="bulk-students-input" rows="4" placeholder="Plak hier een lijst met één naam per regel..." class="w-full p-2.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
@@ -848,8 +1375,149 @@
       `;
     }
 
-    // --- PRINTVOLGORDE & INSTELLINGEN ---
+    // --- KLASGROEPEN (OPGESLAGEN SAMENSTELLINGEN & VOLGORDE) ---
+    function saveNewClassGroup() {
+      const selectedClasses = state.classes.filter(c => c.selected);
+      if (selectedClasses.length === 0) {
+        showToast('Vink eerst minstens één klas aan om op te slaan als klasgroep.');
+        return;
+      }
 
+      const defaultName = selectedClasses.map(c => c.name).join(' + ');
+      openPromptModal('Klasgroep opslaan', 'Geef een naam voor deze samenstelling en volgorde van klassen:', defaultName, (groupName) => {
+        if (!groupName || !groupName.trim()) return;
+        const newGroup = {
+          id: 'grp_' + Date.now(),
+          name: groupName.trim(),
+          classIds: selectedClasses.map(c => c.id)
+        };
+        state.classGroups.push(newGroup);
+        state.activeGroupId = newGroup.id;
+        saveState();
+        renderPrintSettings();
+        showToast(`Klasgroep "${newGroup.name}" opgeslagen`);
+      });
+    }
+
+    function loadClassGroup(groupId) {
+      const group = state.classGroups.find(g => g.id === groupId);
+      if (!group) return;
+
+      // Zet eerst alle klassen op niet-geselecteerd
+      state.classes.forEach(c => { c.selected = false; });
+
+      // Herordenen volgens de opgeslagen volgorde in de klasgroep
+      const orderedClasses = [];
+      group.classIds.forEach(cid => {
+        const found = state.classes.find(c => c.id === cid);
+        if (found) {
+          found.selected = true;
+          orderedClasses.push(found);
+        }
+      });
+
+      // Voeg niet-geselecteerde klassen achteraan toe
+      state.classes.forEach(c => {
+        if (!orderedClasses.some(oc => oc.id === c.id)) {
+          orderedClasses.push(c);
+        }
+      });
+
+      state.classes = orderedClasses;
+      state.activeGroupId = group.id;
+      saveState();
+      renderAll();
+      showToast(`Klasgroep "${group.name}" geladen`);
+    }
+
+    function overwriteClassGroup(groupId) {
+      const group = state.classGroups.find(g => g.id === groupId);
+      if (!group) return;
+      const selectedClasses = state.classes.filter(c => c.selected);
+      if (selectedClasses.length === 0) {
+        showToast('Selecteer eerst minstens één klas om de groep bij te werken.');
+        return;
+      }
+      group.classIds = selectedClasses.map(c => c.id);
+      state.activeGroupId = group.id;
+      saveState();
+      renderPrintSettings();
+      showToast(`Klasgroep "${group.name}" bijgewerkt`);
+    }
+
+    function renameClassGroup(groupId) {
+      const group = state.classGroups.find(g => g.id === groupId);
+      if (!group) return;
+      openPromptModal('Klasgroep hernoemen', 'Nieuwe naam voor deze klasgroep:', group.name, (newName) => {
+        if (newName && newName.trim()) {
+          group.name = newName.trim();
+          saveState();
+          renderPrintSettings();
+          showToast('Naam van klasgroep aangepast');
+        }
+      });
+    }
+
+    function deleteClassGroup(groupId) {
+      const group = state.classGroups.find(g => g.id === groupId);
+      if (!group) return;
+      openConfirmModal(
+        'Klasgroep verwijderen',
+        `Weet je zeker dat je klasgroep "${group.name}" wilt verwijderen? (De klassen zelf blijven gewoon bewaard.)`,
+        () => {
+          state.classGroups = state.classGroups.filter(g => g.id !== groupId);
+          if (state.activeGroupId === groupId) state.activeGroupId = null;
+          saveState();
+          renderPrintSettings();
+          showToast(`Klasgroep "${group.name}" verwijderd`);
+        }
+      );
+    }
+
+    function renderClassGroups() {
+      const listEl = document.getElementById('class-groups-list');
+      if (state.classGroups.length === 0) {
+        listEl.innerHTML = `<p class="text-[11px] text-indigo-800/70 italic">Nog geen klasgroepen opgeslagen. Vink hieronder klassen aan, zet ze in de gewenste volgorde en klik op "+ Huidige selectie opslaan".</p>`;
+        return;
+      }
+
+      listEl.innerHTML = state.classGroups.map(grp => {
+        const classNames = grp.classIds
+          .map(cid => state.classes.find(c => c.id === cid))
+          .filter(Boolean)
+          .map(c => c.name);
+        const isCurrent = state.activeGroupId === grp.id;
+
+        return `
+          <div class="flex items-center justify-between p-2 rounded-lg border transition ${
+            isCurrent ? 'bg-white border-indigo-400 shadow-2xs' : 'bg-white/80 border-indigo-200/80 hover:bg-white'
+          }">
+            <button type="button" onclick="loadClassGroup('${grp.id}')" class="text-left flex-1 min-w-0 pr-2">
+              <div class="flex items-center gap-1.5">
+                <span class="text-xs font-bold text-slate-900 truncate">${escapeHtml(grp.name)}</span>
+                ${isCurrent ? `<span class="px-1.5 py-0.2 text-[9px] font-semibold bg-indigo-100 text-indigo-700 rounded">Actief</span>` : ''}
+              </div>
+              <p class="text-[10px] text-slate-500 truncate mt-0.5">
+                ${classNames.length > 0 ? classNames.map(escapeHtml).join(' → ') : 'Geen geldige klassen meer'}
+              </p>
+            </button>
+            <div class="flex items-center gap-1 shrink-0">
+              <button type="button" onclick="overwriteClassGroup('${grp.id}')" title="Huidige selectie & volgorde opslaan in deze klasgroep" class="p-1 text-slate-400 hover:text-indigo-600 rounded">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              </button>
+              <button type="button" onclick="renameClassGroup('${grp.id}')" title="Naam wijzigen" class="p-1 text-slate-400 hover:text-slate-700 rounded">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+              </button>
+              <button type="button" onclick="deleteClassGroup('${grp.id}')" title="Verwijderen" class="p-1 text-slate-400 hover:text-rose-600 rounded">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // --- PRINTVOLGORDE & INSTELLINGEN ---
     function toggleClassSelection(id) {
       const cls = state.classes.find(c => c.id === id);
       if (!cls) return;
@@ -868,9 +1536,8 @@
       renderAll();
     }
 
-    // Drag & Drop handlers voor klasvolgorde
     function handleDragStart(e, index) {
-      dragSourceIndex = index;
+      dragClassOrderIndex = index;
       e.dataTransfer.effectAllowed = 'move';
       e.currentTarget.classList.add('opacity-50');
     }
@@ -882,17 +1549,17 @@
 
     function handleDrop(e, targetIndex) {
       e.preventDefault();
-      if (dragSourceIndex === null || dragSourceIndex === targetIndex) return;
-      const [moved] = state.classes.splice(dragSourceIndex, 1);
+      if (dragClassOrderIndex === null || dragClassOrderIndex === targetIndex) return;
+      const [moved] = state.classes.splice(dragClassOrderIndex, 1);
       state.classes.splice(targetIndex, 0, moved);
-      dragSourceIndex = null;
+      dragClassOrderIndex = null;
       saveState();
       renderAll();
     }
 
     function handleDragEnd(e) {
       e.currentTarget.classList.remove('opacity-50');
-      dragSourceIndex = null;
+      dragClassOrderIndex = null;
     }
 
     function updateSetting(key, value) {
@@ -903,6 +1570,8 @@
     }
 
     function renderPrintSettings() {
+      renderClassGroups();
+
       document.getElementById('setting-title').value = state.settings.title;
       document.getElementById('setting-teacher').value = state.settings.teacher;
       document.getElementById('setting-period').value = state.settings.period;
@@ -913,7 +1582,6 @@
       document.getElementById('setting-extraRows').value = state.settings.extraRows;
       document.getElementById('extra-rows-label').textContent = state.settings.extraRows;
 
-      // Page mode buttons
       const btnCont = document.getElementById('mode-continuous');
       const btnPage = document.getElementById('mode-pagePerClass');
       if (state.settings.pageMode === 'continuous') {
@@ -924,10 +1592,9 @@
         btnCont.className = 'px-3 py-2 text-xs font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 text-center transition';
       }
 
-      // Klasvolgorde lijst
       const listEl = document.getElementById('print-order-list');
       if (state.classes.length === 0) {
-        listEl.innerHTML = `<p class="text-xs text-slate-400 italic">Voeg eerst klassen toe in het eerste tabblad.</p>`;
+        listEl.innerHTML = `<p class="text-xs text-slate-400 italic">Voeg eerst klassen toe of importeer een bestand in het eerste tabblad.</p>`;
         return;
       }
 
@@ -961,7 +1628,6 @@
     }
 
     // --- LIVE PRINTVOORBEELD RENDERING ---
-
     function saveHeaderCellNote(key, el) {
       state.settings.headerNotes[key] = el.innerText.trim();
       saveState();
@@ -979,7 +1645,6 @@
       const showClassCol = state.settings.showClassCol;
       const notes = state.settings.headerNotes || {};
 
-      // Genereer de 3 lege koprijen (omschrijving, datum, max) zonder tekstlabels
       let descCells = '';
       let dateCells = '';
       let maxCells = '';
@@ -994,7 +1659,6 @@
         maxCells += `<th class="editable-header-cell" contenteditable="true" onblur="saveHeaderCellNote('${maxKey}', this)">${escapeHtml(notes[maxKey] || '')}</th>`;
       }
 
-      // Lichaam van de tabel
       let emptyEvalCells = '';
       for (let c = 0; c < colCount; c++) {
         emptyEvalCells += `<td></td>`;
@@ -1020,7 +1684,6 @@
         `;
       }).join('');
 
-      // Meta-info rechtsboven
       const metaParts = [];
       if (subtitleClassLabel) metaParts.push(`<span><strong>Klas:</strong> ${escapeHtml(subtitleClassLabel)}</span>`);
       if (state.settings.teacher) metaParts.push(`<span><strong>Leerkracht:</strong> ${escapeHtml(state.settings.teacher)}</span>`);
@@ -1064,9 +1727,12 @@
       if (selectedClasses.length === 0) {
         summaryEl.textContent = '0 klassen geselecteerd';
         container.innerHTML = `
-          <div class="a4-landscape-sheet shadow-md rounded-sm flex flex-col items-center justify-center text-center p-10 border border-slate-300">
-            <p class="text-base font-semibold text-slate-700">Geen klassen geselecteerd voor het puntenboek</p>
-            <p class="text-xs text-slate-500 mt-1 max-w-md">Ga naar tabblad <strong>"2. Bladopmaak & Volgorde"</strong> aan de linkerkant en vink één of meerdere klassen aan.</p>
+          <div class="a4-landscape-sheet shadow-md rounded-sm flex flex-col items-center justify-center text-center p-10 border border-slate-300 space-y-3">
+            <p class="text-base font-semibold text-slate-700">Nog geen klassen op het puntenboek</p>
+            <p class="text-xs text-slate-500 max-w-md">Importeer een Excel/CSV-bestand of voeg klassen toe in het linkerpaneel en vink ze aan.</p>
+            <button type="button" onclick="openImportModal()" class="no-print inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
+              Excel / CSV importeren
+            </button>
           </div>
         `;
         return;
@@ -1076,7 +1742,6 @@
       summaryEl.textContent = `${selectedClasses.length} klas(sen) • ${totalStudents} leerlingen • ${state.settings.colCount} evaluatiekolommen`;
 
       if (state.settings.pageMode === 'pagePerClass') {
-        // Elke geselecteerde klas op een eigen A4-blad
         container.innerHTML = selectedClasses.map((cls, cIdx) => {
           const rows = cls.students.map((st, sIdx) => ({
             type: 'student',
@@ -1101,11 +1766,10 @@
           `;
         }).join('');
       } else {
-        // Alle geselecteerde klassen op één doorlopende lijst
         const rows = [];
         let runningCounter = 1;
 
-        selectedClasses.forEach((cls, cIdx) => {
+        selectedClasses.forEach(cls => {
           if (selectedClasses.length > 1) {
             rows.push({ type: 'divider', className: cls.name });
           }
@@ -1145,7 +1809,6 @@
     }
 
     // --- BACK-UP EXPORT / IMPORT / WISSEN ---
-
     function exportBackup() {
       const dataStr = JSON.stringify(state, null, 2);
       const blob = new Blob([dataStr], { type: 'application/json' });
@@ -1170,12 +1833,14 @@
           if (!Array.isArray(parsed.classes)) throw new Error('Ongeldig formaat');
           state = {
             classes: parsed.classes,
+            classGroups: Array.isArray(parsed.classGroups) ? parsed.classGroups : [],
+            activeGroupId: parsed.activeGroupId || null,
             activeClassId: parsed.activeClassId || (parsed.classes[0] ? parsed.classes[0].id : null),
-            settings: { ...DEFAULT_STATE.settings, ...(parsed.settings || {}) }
+            settings: { ...BLANK_STATE.settings, ...(parsed.settings || {}) }
           };
           saveState();
           renderAll();
-          showToast('Back-up succesvol ingeladen');
+          showToast('Back-up succesvol hersteld');
         } catch (err) {
           showToast('Fout: ongeldig JSON-bestand');
         }
@@ -1187,13 +1852,9 @@
     function confirmClearAll() {
       openConfirmModal(
         'Alle gegevens wissen',
-        'Weet je zeker dat je alle klassen, leerlingen en instellingen wilt wissen? Dit kan niet ongedaan worden gemaakt.',
+        'Weet je zeker dat je alle klassen, leerlingen, klasgroepen en instellingen wilt wissen?',
         () => {
-          state = {
-            classes: [],
-            activeClassId: null,
-            settings: JSON.parse(JSON.stringify(DEFAULT_STATE.settings))
-          };
+          state = JSON.parse(JSON.stringify(BLANK_STATE));
           saveState();
           renderAll();
           showToast('Alle gegevens gewist');
@@ -1202,7 +1863,6 @@
     }
 
     // --- CUSTOM MODAL HELPERS ---
-
     function openConfirmModal(title, message, onConfirm) {
       const modal = document.getElementById('custom-modal');
       document.getElementById('modal-title').textContent = title;
