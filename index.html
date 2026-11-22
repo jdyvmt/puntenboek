@@ -3,245 +3,56 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Puntenboek Generator</title>
+  <title>Puntenboek Generator (1 A4 Liggend)</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- SheetJS voor het inlezen en genereren van Excel (.xlsx/.xls) en CSV bestanden -->
-  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
-    }
-
-    /* Subtiele scrollbars */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-    /* Printblad & Tabel opmaak op liggend A4 (strikt 1 pagina) */
-    .a4-landscape-sheet {
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+    .a4-sheet {
       width: 297mm;
       height: 210mm;
-      max-height: 210mm;
-      padding: var(--sheet-pad-y, 9mm) var(--sheet-pad-x, 11mm);
       background: #ffffff;
-      color: #0f172a;
       box-sizing: border-box;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
-      position: relative;
     }
-
-    .grade-table {
+    .punten-table {
       width: 100%;
+      height: 100%;
       border-collapse: collapse;
       table-layout: fixed;
     }
-
-    .grade-table th,
-    .grade-table td {
-      border: 1px solid #64748b;
-      padding: 0;
-      vertical-align: middle;
-      box-sizing: border-box;
-    }
-
-    /* Koprijen zonder tekstlabels ('Wat', 'Datum', 'Max') */
-    .grade-table thead th {
-      background-color: #ffffff;
-      font-weight: 600;
-    }
-
-    .grade-table thead tr.row-desc th {
-      height: var(--hdr-desc-h, 14mm);
-      border-bottom: 1px dashed #94a3b8;
-      vertical-align: top;
-      padding: 2px 3px;
-      font-size: 7.5pt;
-      font-weight: 500;
-      color: #334155;
-      text-align: left;
-      word-wrap: break-word;
-    }
-
-    .grade-table thead tr.row-date th {
-      height: var(--hdr-date-h, 6mm);
-      border-top: none;
-      border-bottom: 1px dashed #94a3b8;
-      padding: 1px 2px;
-      font-size: 7pt;
-      font-weight: 400;
-      color: #475569;
-      text-align: center;
-    }
-
-    .grade-table thead tr.row-max th {
-      height: var(--hdr-max-h, 6mm);
-      border-top: none;
-      border-bottom: 1.5px solid #334155;
-      background-color: #f8fafc;
-      padding: 1px 2px;
-      font-size: 7.5pt;
-      font-weight: 600;
-      color: #0f172a;
-      text-align: center;
-    }
-
-    .grade-table thead th.col-nr,
-    .grade-table thead th.col-class,
-    .grade-table thead th.col-name {
-      background-color: #f1f5f9;
-      border-bottom: 1.5px solid #334155;
-      font-size: 8.5pt;
-      color: #0f172a;
-      padding: 3px 6px;
-    }
-
-    .col-nr {
-      width: 9mm;
-      text-align: center;
-    }
-
-    .col-class {
-      width: 17mm;
-      text-align: center;
-    }
-
-    .col-name {
-      width: 56mm;
-      text-align: left;
-    }
-
-    .grade-table tbody td {
-      height: var(--student-row-h, 7mm);
-      font-size: var(--student-font-size, 8.8pt);
-      line-height: 1.1;
-    }
-
-    .grade-table tbody tr:nth-child(even) td {
-      background-color: #fafafa;
-    }
-
-    .grade-table tbody tr.class-divider-row td {
-      background-color: #e2e8f0 !important;
-      font-weight: 700;
-      font-size: var(--divider-font-size, 8pt);
-      color: #0f172a;
-      height: var(--divider-row-h, 5.8mm);
-      padding-left: 6px;
-      letter-spacing: 0.03em;
-    }
-
-    .cell-text-nr {
-      text-align: center;
-      color: #64748b;
-      font-size: 7.8pt;
-    }
-
-    .cell-text-class {
-      text-align: center;
-      font-weight: 600;
-      font-size: 7.8pt;
-      color: #334155;
-    }
-
-    .cell-text-name {
-      padding-left: 6px !important;
-      padding-right: 4px !important;
-      white-space: nowrap;
+    .punten-table th, .punten-table td {
+      border: 1px solid #1e293b;
+      padding: 0 3px;
       overflow: hidden;
       text-overflow: ellipsis;
-      color: #0f172a;
+      white-space: nowrap;
     }
-
-    .editable-header-cell {
-      cursor: text;
-      transition: background-color 0.15s;
-    }
-    .editable-header-cell:hover {
-      background-color: #eff6ff !important;
-    }
-    .editable-header-cell:focus {
-      outline: 2px solid #3b82f6;
-      outline-offset: -2px;
-      background-color: #ffffff !important;
-    }
-
-    /* PRINT STIJLEN: Strikt 1 liggend A4-blad zonder ooit door te lopen */
-    @page {
-      size: A4 landscape;
-      margin: 0;
-    }
-
     @media print {
-      * {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-
+      @page { size: A4 landscape; margin: 0; }
       html, body {
-        width: 297mm !important;
-        height: 210mm !important;
+        width: 297mm;
+        height: 210mm;
         margin: 0 !important;
         padding: 0 !important;
         background: #ffffff !important;
         overflow: hidden !important;
       }
-
-      .no-print {
-        display: none !important;
-      }
-
-      #app-layout {
-        display: block !important;
-        width: 297mm !important;
-        height: 210mm !important;
-        overflow: hidden !important;
-      }
-
-      #preview-pane {
+      .no-print { display: none !important; }
+      .print-wrapper {
         padding: 0 !important;
         margin: 0 !important;
         background: #ffffff !important;
-        overflow: hidden !important;
         display: block !important;
-        width: 297mm !important;
-        height: 210mm !important;
       }
-
-      #print-sheets-container {
-        margin: 0 !important;
-        padding: 0 !important;
-        width: 297mm !important;
-        height: 210mm !important;
-        overflow: hidden !important;
-      }
-
-      .a4-landscape-sheet {
-        width: 297mm !important;
-        height: 210mm !important;
-        max-height: 210mm !important;
-        padding: var(--sheet-pad-y, 9mm) var(--sheet-pad-x, 11mm) !important;
-        margin: 0 !important;
+      .a4-sheet {
         box-shadow: none !important;
         border: none !important;
-        overflow: hidden !important;
-        break-inside: avoid !important;
-        page-break-inside: avoid !important;
-        break-after: avoid !important;
-        page-break-after: avoid !important;
-      }
-
-      .grade-table tr {
-        break-inside: avoid;
+        margin: 0 !important;
+        page-break-after: avoid;
         page-break-inside: avoid;
       }
     }
@@ -249,1089 +60,1006 @@
 </head>
 <body class="bg-slate-100 text-slate-800 h-screen flex flex-col overflow-hidden">
 
+  <!-- Toast / Statusmelding -->
+  <div id="toast" class="no-print fixed top-16 right-4 z-50 hidden max-w-md rounded-lg shadow-lg border px-4 py-3 text-xs font-medium transition-all"></div>
+
   <!-- Bovenbalk -->
-  <header class="no-print bg-white border-b border-slate-200 px-5 py-3 flex flex-wrap items-center justify-between gap-3 shrink-0 z-10">
-    <div class="flex items-center gap-3">
-      <div class="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-sm">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
-      </div>
+  <header class="no-print bg-white border-b border-slate-200 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 shrink-0">
+    <div class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-sm">PB</div>
       <div>
-        <h1 class="text-base font-bold text-slate-900 leading-tight">Puntenboek Generator</h1>
-        <p class="text-xs text-slate-500">Importeer Excel/CSV, stel klasgroepen samen en print op liggend A4</p>
+        <h1 class="text-sm font-bold text-slate-900 leading-tight">Puntenboek Generator</h1>
+        <p class="text-[11px] text-slate-500">Strikt 1× A4 liggend · Automatische pasvorm &amp; klasgroepen</p>
       </div>
     </div>
 
-    <div class="flex flex-wrap items-center gap-2">
-      <!-- Excel / CSV Importeren -->
-      <button type="button" onclick="openImportModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-        </svg>
+    <div class="flex flex-wrap items-center gap-1.5">
+      <button onclick="openImportModal()" class="px-2.5 py-1.5 text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md hover:bg-emerald-100">
         Excel / CSV importeren
       </button>
-
-      <!-- JSON Back-up -->
-      <button type="button" onclick="exportBackup()" title="Download een JSON back-up van je klassen, klasgroepen en instellingen" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition">
-        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-        </svg>
-        Back-up
+      <button onclick="exportExcelBackup()" class="px-2.5 py-1.5 text-xs font-medium bg-white text-slate-700 border border-slate-200 rounded-md hover:bg-slate-50">
+        Exporteer Excel
       </button>
-
-      <label title="Herstel vanuit een eerder opgeslagen JSON back-upbestand" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition cursor-pointer">
-        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-        </svg>
+      <button onclick="exportJsonBackup()" class="px-2.5 py-1.5 text-xs font-medium bg-white text-slate-700 border border-slate-200 rounded-md hover:bg-slate-50">
+        Back-up (JSON)
+      </button>
+      <label class="px-2.5 py-1.5 text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200 rounded-md hover:bg-amber-100 cursor-pointer">
         Herstel
-        <input type="file" id="import-json-input" accept=".json" class="hidden" onchange="importBackup(event)">
+        <input id="restoreInput" type="file" accept=".json,.xlsx,.xls,.csv,.txt" class="hidden" onchange="handleRestoreFile(event)">
       </label>
-
-      <!-- Printen -->
-      <button type="button" onclick="window.print()" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm transition">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-        </svg>
-        Printen / PDF
+      <button onclick="window.print()" class="px-3.5 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-md hover:bg-slate-800 shadow-sm">
+        Print / PDF (1 A4)
       </button>
     </div>
   </header>
 
   <!-- Hoofdindeling -->
-  <div id="app-layout" class="flex-1 flex flex-col lg:flex-row overflow-hidden">
-
-    <!-- LINKERPANEEL -->
-    <aside class="no-print w-full lg:w-[430px] xl:w-[460px] bg-white border-r border-slate-200 flex flex-col shrink-0 h-1/2 lg:h-full">
-      <!-- Tabbladen -->
-      <div class="flex border-b border-slate-200 bg-slate-50/70 px-3 pt-2 gap-1 shrink-0">
-        <button id="tab-btn-classes" onclick="switchTab('classes')" class="flex-1 py-2.5 px-3 text-xs font-semibold rounded-t-lg border-b-2 border-indigo-600 text-indigo-600 bg-white transition flex items-center justify-center gap-1.5">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          1. Klassen & Leerlingen
+  <div class="flex-1 flex overflow-hidden">
+    <!-- Zijpaneel -->
+    <aside class="no-print w-96 bg-white border-r border-slate-200 flex flex-col shrink-0 overflow-hidden">
+      <!-- Tabs -->
+      <div class="grid grid-cols-2 border-b border-slate-200 text-xs font-semibold">
+        <button id="tabBtnClasses" onclick="switchTab('classes')" class="py-2.5 text-center border-b-2 border-slate-900 text-slate-900 bg-slate-50">
+          1. Klassen &amp; Leerlingen
         </button>
-        <button id="tab-btn-print" onclick="switchTab('print')" class="flex-1 py-2.5 px-3 text-xs font-semibold rounded-t-lg border-b-2 border-transparent text-slate-600 hover:text-slate-900 transition flex items-center justify-center gap-1.5">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-          </svg>
-          2. Klasgroepen & Opmaak
+        <button id="tabBtnGroups" onclick="switchTab('groups')" class="py-2.5 text-center border-b-2 border-transparent text-slate-500 hover:text-slate-800">
+          2. Klasgroepen &amp; Opmaak
         </button>
       </div>
 
-      <!-- TAB 1: KLASSEN & LEERLINGEN BEHEER -->
-      <div id="tab-panel-classes" class="flex-1 overflow-y-auto p-4 space-y-4">
-        <!-- Snel starten: Import of handmatige klas -->
-        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-semibold text-slate-700">Klas toevoegen of inlezen</span>
-            <button type="button" onclick="openImportModal()" class="text-xs font-semibold text-emerald-700 hover:text-emerald-800 underline flex items-center gap-1">
-              Importeren uit Excel / CSV
-            </button>
-          </div>
-          <form onsubmit="addClass(event)" class="flex gap-2">
-            <input type="text" id="new-class-name" placeholder="Klasnaam (bijv. 4HW, 3SPWE+...)" required class="flex-1 px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <button type="submit" class="px-3.5 py-2 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition shrink-0">
-              + Klas
-            </button>
-          </form>
+      <!-- Tab 1: Klassen & Leerlingen -->
+      <div id="tabClasses" class="flex-1 overflow-y-auto p-3.5 space-y-3.5">
+        <div class="flex gap-1.5">
+          <input id="newClassName" type="text" placeholder="Nieuwe klas (bv. 4des)" class="flex-1 text-xs border border-slate-300 rounded-md px-2.5 py-1.5 focus:outline-none focus:border-slate-900" onkeydown="if(event.key==='Enter') addClass()">
+          <button onclick="addClass()" class="px-3 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-md hover:bg-slate-800">+ Klas</button>
         </div>
 
-        <!-- Klassenlijst & leerlingen -->
-        <div id="class-editor-area" class="space-y-4">
-          <!-- Dynamisch ingevuld -->
-        </div>
+        <div id="classSelectorList" class="flex flex-wrap gap-1.5"></div>
 
-        <!-- Footer met opslaginfo en alles wissen -->
-        <div class="pt-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500">
-          <span>Lokaal bewaard in je browser</span>
-          <button type="button" onclick="confirmClearAll()" class="text-rose-600 hover:text-rose-700 font-medium underline">
-            Alles wissen
-          </button>
-        </div>
-      </div>
-
-      <!-- TAB 2: KLASGROEPEN, VOLGORDE & BLADOPMAAK -->
-      <div id="tab-panel-print" class="hidden flex-1 overflow-y-auto p-4 space-y-5">
-
-        <!-- LIVE 1-A4 CAPACITEITSMETER & SLIMME WAARSCHUWING -->
-        <div id="sidebar-capacity-card" class="p-3.5 rounded-xl border transition space-y-2.5">
-          <!-- Dynamisch ingevuld -->
-        </div>
-
-        <!-- KLASGROEPEN BEHEER -->
-        <div class="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-200 space-y-3">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-900">Klasgroepen</h3>
-              <p class="text-[11px] text-indigo-700/80">Bewaar combinaties & volgordes van klassen</p>
+        <div id="activeClassPanel" class="hidden border border-slate-200 rounded-lg p-3 bg-slate-50/60 space-y-2.5">
+          <div class="flex items-center justify-between gap-2">
+            <input id="editClassNameInput" type="text" class="text-xs font-bold bg-white border border-slate-300 rounded px-2 py-1 w-36" onchange="renameActiveClass(this.value)">
+            <div class="flex items-center gap-1">
+              <button onclick="sortActiveClassAZ()" title="Herstel alfabetische volgorde op familienaam" class="px-2 py-1 text-[11px] font-medium bg-white border border-slate-300 rounded hover:bg-slate-100">
+                Herstel A–Z
+              </button>
+              <button onclick="deleteActiveClass()" title="Klas verwijderen" class="px-2 py-1 text-[11px] font-medium bg-rose-50 text-rose-700 border border-rose-200 rounded hover:bg-rose-100">
+                Verwijder
+              </button>
             </div>
-            <button type="button" onclick="saveNewClassGroup()" class="px-2.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-2xs transition">
-              + Huidige selectie opslaan
+          </div>
+
+          <!-- Leerlingen toevoegen -->
+          <div class="space-y-1.5">
+            <textarea id="bulkStudentsInput" rows="3" placeholder="Plak namen (1 per lijn, bv.&#10;JANSENS Jan&#10;DE VRIES Marie)" class="w-full text-xs border border-slate-300 rounded-md p-2 bg-white focus:outline-none focus:border-slate-900"></textarea>
+            <button onclick="addStudentsFromTextarea()" class="w-full py-1.5 text-xs font-medium bg-slate-800 text-white rounded-md hover:bg-slate-700">
+              Leerlingen toevoegen (auto A–Z familienaam)
             </button>
           </div>
 
-          <div id="class-groups-list" class="space-y-1.5">
-            <!-- Dynamisch ingevuld -->
+          <!-- Leerlingenlijst -->
+          <div class="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+            <span id="studentCountLabel">0 leerlingen</span>
+            <span id="sortStatusBadge" class="px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">A–Z familienaam</span>
           </div>
+          <ul id="studentList" class="divide-y divide-slate-200 bg-white border border-slate-200 rounded-md max-h-72 overflow-y-auto text-xs"></ul>
         </div>
 
-        <!-- KLASSEN SELECTEREN & VOLGORDE BEPALEN -->
-        <div class="space-y-2.5">
+        <div id="emptyClassesHint" class="text-center py-8 px-4 border border-dashed border-slate-300 rounded-lg text-xs text-slate-500 space-y-2">
+          <p class="font-medium text-slate-700">Nog geen klassen ingevoerd</p>
+          <p>Voeg hierboven een klas toe of importeer een Excel- of CSV-bestand.</p>
+        </div>
+      </div>
+
+      <!-- Tab 2: Klasgroepen & Opmaak -->
+      <div id="tabGroups" class="hidden flex-1 overflow-y-auto p-3.5 space-y-4">
+        <!-- Capaciteitsmeter -->
+        <div id="sidebarCapacityBox" class="p-2.5 rounded-lg border text-xs space-y-1.5"></div>
+
+        <!-- Opgeslagen klasgroepen -->
+        <div class="space-y-2">
           <div class="flex items-center justify-between">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Actieve klassen & volgorde</h3>
-            <span class="text-[11px] text-slate-400">Vink aan & versleep of klik pijltjes</span>
+            <span class="text-xs font-bold text-slate-800">Opgeslagen klasgroepen</span>
+            <span id="activeGroupIndicator" class="text-[11px] text-slate-500">Losse selectie</span>
           </div>
-          <div id="print-order-list" class="space-y-1.5">
-            <!-- Dynamisch ingevuld -->
+          <div class="flex gap-1.5">
+            <input id="groupNameInput" type="text" placeholder="Naam klasgroep (bv. 3e graad)" class="flex-1 text-xs border border-slate-300 rounded-md px-2.5 py-1.5 bg-white">
+            <button onclick="saveCurrentAsGroup()" class="px-2.5 py-1.5 text-xs font-semibold bg-slate-900 text-white rounded-md hover:bg-slate-800">
+              Opslaan
+            </button>
           </div>
+          <div id="savedGroupsList" class="space-y-1.5"></div>
         </div>
 
-        <!-- TITEL & KOPGEGEVENS -->
-        <div class="space-y-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Titel & Koptekst</h3>
+        <!-- Selectie & Volgorde op het blad -->
+        <div class="space-y-2 border-t border-slate-200 pt-3">
+          <span class="text-xs font-bold text-slate-800 block">Klassen op dit A4-blad (vink aan &amp; orden)</span>
+          <div id="sheetClassesOrderList" class="space-y-1"></div>
+        </div>
+
+        <!-- Bladinstellingen -->
+        <div class="space-y-2.5 border-t border-slate-200 pt-3 text-xs">
+          <span class="font-bold text-slate-800 block">Bladinstellingen</span>
           <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1">Hoofdtitel puntenboek</label>
-            <input type="text" id="setting-title" oninput="updateSetting('title', this.value)" placeholder="Bijv. Puntenboek Nederlands" class="w-full px-3 py-1.5 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <label class="block text-[11px] text-slate-600 mb-1">Titel linksboven (optioneel)</label>
+            <input id="sheetTitleInput" type="text" placeholder="bv. Puntenboek Nederlands — Sem 1" class="w-full border border-slate-300 rounded px-2 py-1 text-xs" oninput="updateSetting('sheetTitle', this.value)">
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1">Leerkracht (optioneel)</label>
-              <input type="text" id="setting-teacher" oninput="updateSetting('teacher', this.value)" placeholder="Naam leerkracht" class="w-full px-3 py-1.5 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <label class="block text-[11px] text-slate-600 mb-1">Evaluatiekolommen</label>
+              <input id="evalColsInput" type="number" min="4" max="20" class="w-full border border-slate-300 rounded px-2 py-1 text-xs" oninput="updateSetting('evalCols', parseInt(this.value)||12)">
             </div>
             <div>
-              <label class="block text-xs font-medium text-slate-700 mb-1">Periode / Trimester</label>
-              <input type="text" id="setting-period" oninput="updateSetting('period', this.value)" placeholder="Bijv. Periode 1" class="w-full px-3 py-1.5 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <label class="block text-[11px] text-slate-600 mb-1">Extra lege rijen</label>
+              <input id="extraRowsInput" type="number" min="0" max="15" class="w-full border border-slate-300 rounded px-2 py-1 text-xs" oninput="updateSetting('extraRows', parseInt(this.value)||0)">
             </div>
           </div>
-        </div>
-
-        <!-- PAGINA-INDELING & KOLOMMEN -->
-        <div class="space-y-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Indeling & Evaluatiekolommen</h3>
-
-          <div>
-            <label class="block text-xs font-medium text-slate-700 mb-1.5">Bladdichtheid (1 A4-pagina)</label>
-            <div class="grid grid-cols-2 gap-2">
-              <button type="button" id="density-normal" onclick="updateSetting('density', 'normal')" class="px-3 py-2 text-xs font-medium rounded-lg border text-center transition">
-                Standaard (ruim)
-              </button>
-              <button type="button" id="density-compact" onclick="updateSetting('density', 'compact')" class="px-3 py-2 text-xs font-medium rounded-lg border text-center transition">
-                Compact (meer rijen)
-              </button>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] text-slate-600 mb-1">Bladdichtheid</label>
+              <select id="densitySelect" class="w-full border border-slate-300 rounded px-2 py-1 text-xs bg-white" onchange="updateSetting('density', this.value)">
+                <option value="normal">Normaal</option>
+                <option value="compact">Compact (meer rijen)</option>
+              </select>
             </div>
-          </div>
-
-          <div class="flex items-center justify-between pt-1">
-            <label class="text-xs font-medium text-slate-700">Tussenkop per klas tonen</label>
-            <input type="checkbox" id="setting-showClassDividers" onchange="updateSetting('showClassDividers', this.checked)" class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
-          </div>
-
-          <div class="flex items-center justify-between">
-            <label class="text-xs font-medium text-slate-700">Toon klasnaam bij elke leerling</label>
-            <input type="checkbox" id="setting-showClassCol" onchange="updateSetting('showClassCol', this.checked)" class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
-          </div>
-
-          <div class="flex items-center justify-between">
-            <label class="text-xs font-medium text-slate-700">Doorlopende nummering</label>
-            <input type="checkbox" id="setting-continuousNumbering" onchange="updateSetting('continuousNumbering', this.checked)" class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">
-          </div>
-
-          <div class="pt-1">
-            <div class="flex justify-between text-xs font-medium text-slate-700 mb-1">
-              <span>Aantal evaluatiekolommen</span>
-              <span id="col-count-label" class="font-bold text-indigo-600">12</span>
+            <div>
+              <label class="block text-[11px] text-slate-600 mb-1">Klasweergave</label>
+              <select id="groupHeaderSelect" class="w-full border border-slate-300 rounded px-2 py-1 text-xs bg-white" onchange="updateSetting('showGroupHeaders', this.value === 'true')">
+                <option value="true">Tussenkop per klas</option>
+                <option value="false">Kolom 'Klas' (compacter)</option>
+              </select>
             </div>
-            <input type="range" id="setting-colCount" min="6" max="18" value="12" oninput="updateSetting('colCount', parseInt(this.value))" class="w-full accent-indigo-600 cursor-pointer">
-            <div class="flex justify-between text-[10px] text-slate-400">
-              <span>6</span>
-              <span>12 (standaard)</span>
-              <span>18</span>
-            </div>
-          </div>
-
-          <div class="pt-1">
-            <div class="flex justify-between text-xs font-medium text-slate-700 mb-1">
-              <span>Extra lege reserverijen onderaan</span>
-              <span id="extra-rows-label" class="font-bold text-indigo-600">2</span>
-            </div>
-            <input type="range" id="setting-extraRows" min="0" max="10" value="2" oninput="updateSetting('extraRows', parseInt(this.value))" class="w-full accent-indigo-600 cursor-pointer">
-          </div>
-
-          <div class="pt-2 border-t border-slate-200 flex items-center justify-between">
-            <span class="text-[11px] text-slate-500">Klik in de bovenste vakjes rechts om optioneel toetsen vooraf in te vullen.</span>
-            <button type="button" onclick="clearHeaderNotes()" class="text-[11px] text-slate-600 hover:text-rose-600 font-medium underline shrink-0 ml-2">
-              Kopvakjes wissen
-            </button>
           </div>
         </div>
       </div>
     </aside>
 
-    <!-- RECHTERPANEEL: LIVE PRINTVOORBEELD OP LIGGEND A4 -->
-    <main id="preview-pane" class="flex-1 overflow-auto bg-slate-200/80 p-4 sm:p-8 flex flex-col items-center">
-      <!-- Info-balkje boven het A4 voorbeeld -->
-      <div class="no-print w-full max-w-[297mm] mb-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
-        <div class="flex items-center gap-2">
-          <span class="inline-flex items-center px-2 py-0.5 rounded bg-white border border-slate-300 font-medium text-slate-700">
-            Strikt 1 × A4 Liggend (297 × 210 mm)
-          </span>
-          <span id="preview-summary-text"></span>
+    <!-- Voorbeeldweergave -->
+    <main class="print-wrapper flex-1 overflow-auto p-6 flex flex-col items-center gap-4 bg-slate-200/70">
+      <!-- Waarschuwingsbanner bij overbelasting -->
+      <div id="overflowWarningBanner" class="no-print hidden w-[297mm] max-w-full bg-amber-50 border border-amber-300 rounded-lg p-3.5 shadow-sm text-xs space-y-2.5">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="font-bold text-amber-900" id="overflowWarningTitle">Let op: te veel rijen voor één comfortabel A4-blad</p>
+            <p class="text-amber-800 mt-0.5" id="overflowWarningDesc"></p>
+          </div>
         </div>
-        <div class="text-slate-500">
-          Klik in de 3 lege kopvakjes per kolom om optioneel onderwerp, datum of max. score vooraf in te vullen
-        </div>
+        <div id="overflowActions" class="flex flex-wrap gap-2"></div>
       </div>
 
-      <!-- Prominente 1-A4 waarschuwingsbanner boven het blad indien te vol -->
-      <div id="preview-warning-banner" class="no-print hidden w-full max-w-[297mm] mb-4">
-        <!-- Dynamisch ingevuld -->
-      </div>
-
-      <!-- Printbaar puntenboek (altijd exact 1 A4-pagina) -->
-      <div id="print-sheets-container" class="pb-10">
-        <!-- Dynamisch gegenereerd -->
-      </div>
+      <!-- Het exacte A4-blad -->
+      <div id="a4Sheet" class="a4-sheet shadow-xl border border-slate-300"></div>
     </main>
   </div>
 
-  <!-- MODAL: EXCEL / CSV IMPORTEREN -->
-  <div id="import-modal" class="no-print hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-slate-200 overflow-hidden">
-      <div class="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-        <div>
-          <h3 class="text-base font-bold text-slate-900">Klassen & leerlingen importeren</h3>
-          <p class="text-xs text-slate-500">Ondersteunt Excel (.xlsx, .xls), CSV en TXT bestanden</p>
-        </div>
-        <button type="button" onclick="closeImportModal()" class="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+  <!-- Import Modal -->
+  <div id="importModal" class="no-print fixed inset-0 bg-slate-900/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl max-w-lg w-full p-5 shadow-2xl space-y-4 text-xs">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-2.5">
+        <h2 class="text-sm font-bold text-slate-900">Klassen &amp; leerlingen importeren (Excel / CSV)</h2>
+        <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-700 font-bold text-base">&times;</button>
+      </div>
+      <p class="text-slate-600 leading-relaxed">
+        Upload een <strong>.xlsx</strong>, <strong>.xls</strong> of <strong>.csv</strong> bestand. Je kunt kolommen gebruiken zoals <em>Klas</em>, <em>Familienaam</em>, <em>Voornaam</em> (of één kolom <em>Naam</em>), of meerdere tabbladen waarbij de tabbladnaam de klas is.
+      </p>
+      <div class="flex items-center gap-2">
+        <input id="excelFileInput" type="file" accept=".xlsx,.xls,.csv,.txt" class="flex-1 border border-slate-300 rounded p-1.5 text-xs" onchange="previewImportFile(event)">
+        <button onclick="downloadSampleExcel()" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300 font-medium shrink-0">
+          Voorbeeld .xlsx
         </button>
       </div>
-
-      <div class="p-5 overflow-y-auto space-y-4 flex-1">
-        <!-- Bestand kiezen & voorbeeldsjabloon -->
-        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between bg-emerald-50/70 border border-emerald-200 rounded-xl p-3.5">
-          <div class="text-xs text-emerald-900">
-            <p class="font-semibold">Nog geen bestand klaarstaan?</p>
-            <p class="text-emerald-700 mt-0.5">Download een kant-en-klaar Excel-sjabloon met de juiste kolommen.</p>
-          </div>
-          <button type="button" onclick="downloadExcelTemplate()" class="px-3.5 py-2 text-xs font-semibold text-emerald-800 bg-white border border-emerald-300 rounded-lg hover:bg-emerald-50 shadow-2xs transition shrink-0">
-            Download voorbeeldsjabloon (.xlsx)
-          </button>
-        </div>
-
-        <!-- Dropzone -->
-        <label id="file-dropzone" class="flex flex-col items-center justify-center border-2 border-dashed border-slate-300 hover:border-indigo-500 rounded-xl p-6 text-center cursor-pointer bg-slate-50/50 hover:bg-indigo-50/30 transition">
-          <svg class="w-8 h-8 text-indigo-500 mb-2" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-          </svg>
-          <span class="text-sm font-semibold text-slate-800" id="import-file-label">Klik om een Excel-, CSV- of TXT-bestand te kiezen</span>
-          <span class="text-xs text-slate-500 mt-1">Of sleep het bestand hierheen (.xlsx, .xls, .csv, .txt)</span>
-          <input type="file" id="spreadsheet-file-input" accept=".xlsx,.xls,.csv,.txt" class="hidden" onchange="handleSpreadsheetUpload(event)">
-        </label>
-
-        <!-- Kolomkoppeling & Preview (verschijnt na uploaden) -->
-        <div id="import-mapping-section" class="hidden space-y-4 pt-2 border-t border-slate-200">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs font-semibold text-slate-700 mb-1">Tabblad in bestand</label>
-              <select id="import-sheet-select" onchange="onImportSheetChange()" class="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
-            </div>
-            <div class="flex items-end pb-1">
-              <label class="inline-flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
-                <input type="checkbox" id="import-has-header" onchange="reparseImportPreview()" class="w-4 h-4 text-indigo-600 rounded border-slate-300">
-                Eerste rij bevat kolomtitels
-              </label>
-            </div>
-          </div>
-
-          <!-- Kolomtoewijzing -->
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-            <div>
-              <label class="block text-[11px] font-semibold text-slate-700 mb-1">Kolom: Klas</label>
-              <select id="map-col-class" onchange="updateImportPreviewList()" class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg"></select>
-              <input type="text" id="map-fallback-class" oninput="updateImportPreviewList()" placeholder="Of vaste klasnaam (bijv. 4HW)" class="hidden mt-1.5 w-full px-2.5 py-1 text-xs bg-white border border-slate-300 rounded-lg">
-            </div>
-            <div>
-              <label class="block text-[11px] font-semibold text-slate-700 mb-1">Kolom: Familienaam (of Volledige naam)</label>
-              <select id="map-col-lastname" onchange="updateImportPreviewList()" class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg"></select>
-            </div>
-            <div>
-              <label class="block text-[11px] font-semibold text-slate-700 mb-1">Kolom: Voornaam (optioneel)</label>
-              <select id="map-col-firstname" onchange="updateImportPreviewList()" class="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-300 rounded-lg"></select>
-            </div>
-          </div>
-
-          <!-- Importmodus -->
-          <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-            <span class="text-xs font-semibold text-slate-700">Bij bestaande klassen:</span>
-            <div class="flex items-center gap-4 text-xs">
-              <label class="inline-flex items-center gap-1.5 cursor-pointer">
-                <input type="radio" name="import-mode" value="merge" checked class="text-indigo-600">
-                <span>Samenvoegen (dubbels overslaan)</span>
-              </label>
-              <label class="inline-flex items-center gap-1.5 cursor-pointer">
-                <input type="radio" name="import-mode" value="replace" class="text-indigo-600">
-                <span>Bestaande klas vervangen</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Voorvertoning van herkende klassen en leerlingen -->
-          <div>
-            <div class="flex items-center justify-between mb-1.5">
-              <span class="text-xs font-bold text-slate-800">Voorvertoning te importeren gegevens</span>
-              <span id="import-preview-badge" class="text-xs font-semibold text-indigo-600"></span>
-            </div>
-            <div id="import-preview-box" class="max-h-44 overflow-y-auto border border-slate-200 rounded-xl p-3 bg-white text-xs space-y-2">
-            </div>
-          </div>
+      <div id="importPreviewBox" class="hidden bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
+        <p id="importSummaryText" class="font-semibold text-slate-800"></p>
+        <div class="flex items-center gap-3">
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="radio" name="importMode" value="merge" checked> Samenvoegen met bestaande klassen
+          </label>
+          <label class="flex items-center gap-1.5 cursor-pointer">
+            <input type="radio" name="importMode" value="replace"> Bestaande klassen vervangen
+          </label>
         </div>
       </div>
-
-      <div class="px-5 py-3.5 border-t border-slate-200 bg-slate-50 flex justify-end gap-2">
-        <button type="button" onclick="closeImportModal()" class="px-4 py-2 text-xs font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg transition">
-          Annuleren
-        </button>
-        <button type="button" id="confirm-import-btn" onclick="executeSpreadsheetImport()" disabled class="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 rounded-lg transition">
-          Gegevens importeren
-        </button>
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-200">
+        <button onclick="closeImportModal()" class="px-3 py-1.5 rounded border border-slate-300 text-slate-700 hover:bg-slate-50">Annuleren</button>
+        <button id="confirmImportBtn" onclick="confirmImport()" disabled class="px-3.5 py-1.5 rounded bg-slate-900 text-white font-semibold disabled:opacity-40">Importeren</button>
       </div>
     </div>
-  </div>
-
-  <!-- Custom Modal / Bevestigingsdialoog -->
-  <div id="custom-modal" class="no-print hidden fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-5 space-y-4 border border-slate-200">
-      <h3 id="modal-title" class="text-base font-bold text-slate-900">Bevestigen</h3>
-      <p id="modal-message" class="text-sm text-slate-600"></p>
-      <div id="modal-input-wrapper" class="hidden">
-        <input type="text" id="modal-input" class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-      </div>
-      <div class="flex justify-end gap-2 pt-2">
-        <button id="modal-cancel-btn" onclick="closeModal()" class="px-4 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition">
-          Annuleren
-        </button>
-        <button id="modal-confirm-btn" class="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition">
-          Bevestigen
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Toast melding -->
-  <div id="toast-banner" class="no-print fixed bottom-5 right-5 bg-slate-900 text-white text-xs font-medium px-4 py-2.5 rounded-xl shadow-lg opacity-0 pointer-events-none transition-opacity duration-200 z-50">
   </div>
 
   <script>
-    const STORAGE_KEY = 'puntenboek_generator_v2';
+    const STORAGE_KEY = 'puntenboek_generator_v4';
+    const PARTICLES = new Set(['de','den','der','des','het','t','\'t','van','vande','vanden','vander','ter','ten','te','op','in','uit','aan','bij','voor','over','onder','al','el','d\'','l\'','le','la','les','du','da','do','dos','das','di','del','della','von','zu','zum','zur']);
 
-    // Drempelwaarden voor leesbare rijhoogtes op 1 liggend A4-blad
-    const COMFORTABLE_ROW_HEIGHT_MM = 6.2; // Comfortabel schrijfbaar
-    const MINIMUM_ROW_HEIGHT_MM = 4.9;     // Absoluut leesbaar minimum
-
-    // Volledig blanco startstatus zonder vooraf ingeladen namen
-    const BLANK_STATE = {
-      classes: [],
-      classGroups: [],
-      activeGroupId: null,
+    let state = {
+      classes: [], // { id, name, students: [{ id, lastName, firstName, fullName }], manualOrder: false }
+      groups: [],  // { id, name, classIds: [] }
+      selectedClassIds: [],
       activeClassId: null,
+      activeGroupId: null,
       settings: {
-        title: 'Puntenboek',
-        teacher: '',
-        period: '',
-        density: 'normal', // 'normal' of 'compact'
-        showClassDividers: true,
-        showClassCol: true,
-        continuousNumbering: false,
-        colCount: 12,
-        extraRows: 2,
-        headerNotes: {}
+        sheetTitle: '',
+        evalCols: 12,
+        extraRows: 0,
+        density: 'normal',
+        showGroupHeaders: true
       }
     };
 
-    let state = loadState();
-    let dragClassOrderIndex = null;
-    let dragStudentIndex = null;
+    let pendingImportData = null;
 
-    // Import-state
-    let currentWorkbook = null;
-    let currentRawRows = [];
-    let parsedImportData = []; // [{ className, students: [] }]
-
-    // --- ALFABETISCHE SORTERING OP FAMILIENAAM (INCL. TUSSENVOEGSELS) ---
-    const DUTCH_PREFIXES = [
-      'van der', 'van den', 'van de', 'van het', 'van \'t',
-      'in de', 'in den', 'in het', 'in \'t',
-      'op de', 'op den', 'op het', 'op \'t',
-      'de', 'den', 'der', 'des', 'du',
-      'van', 'vande', 'vanden', 'vander',
-      'ten', 'ter', 'te', 'el', 'al', 'ben', 'bint', 'da', 'di', 'dos', 'la', 'le', 'st', 'sint'
-    ];
-// ... existing code ... -->
-    // --- BEREKENING VAN 1-A4 CAPACITEIT & SLIMME VOORSTELLEN ---
-    function getDensitySpecs(densityMode) {
-      if (densityMode === 'compact') {
-        return {
-          padY: 5.5,
-          padX: 8,
-          titleBlockH: 8.5,
-          descH: 10.5,
-          dateH: 5.0,
-          maxH: 5.0,
-          dividerH: 4.8,
-          maxRowH: 7.4,
-          fontSize: '8pt',
-          dividerFontSize: '7.5pt'
-        };
-      }
-      return {
-        padY: 9.0,
-        padX: 11,
-        titleBlockH: 10.5,
-        descH: 14.0,
-        dateH: 6.0,
-        maxH: 6.0,
-        dividerH: 5.8,
-        maxRowH: 8.2,
-        fontSize: '8.8pt',
-        dividerFontSize: '8pt'
-      };
+    function uid() {
+      return 'id_' + Math.random().toString(36).slice(2, 10);
     }
 
-    function evaluateSheetFit(customClasses = null, customSettings = null) {
-      const selectedClasses = customClasses || state.classes.filter(c => c.selected);
-      const settings = customSettings || state.settings;
-      const specs = getDensitySpecs(settings.density);
+    function showToast(msg, type = 'info') {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.className = 'no-print fixed top-16 right-4 z-50 max-w-md rounded-lg shadow-lg border px-4 py-3 text-xs font-medium transition-all ' +
+        (type === 'error' ? 'bg-rose-50 border-rose-300 text-rose-900' :
+         type === 'success' ? 'bg-emerald-50 border-emerald-300 text-emerald-900' :
+         'bg-slate-900 border-slate-700 text-white');
+      el.classList.remove('hidden');
+      clearTimeout(el._timer);
+      el._timer = setTimeout(() => el.classList.add('hidden'), 4500);
+    }
 
-      const studentCount = selectedClasses.reduce((sum, c) => sum + c.students.length, 0);
-      const extraRows = Math.max(0, settings.extraRows || 0);
-      const totalWritableRows = studentCount + extraRows;
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {}
+    }
 
-      const useDividers = Boolean(settings.showClassDividers && selectedClasses.length > 1);
-      const dividerCount = useDividers ? selectedClasses.length : 0;
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.classes)) {
+            state = { ...state, ...parsed, settings: { ...state.settings, ...(parsed.settings || {}) } };
+          }
+        }
+      } catch (e) {}
+    }
 
-      // Totale beschikbare hoogte op A4 liggend (210 mm)
-      const fixedVerticalMm = (specs.padY * 2) + specs.titleBlockH + specs.descH + specs.dateH + specs.maxH + (dividerCount * specs.dividerH);
-      const availableForRowsMm = Math.max(20, 210 - fixedVerticalMm);
-
-      // Berekende rijhoogte als alle rijen op 1 A4 passen
-      const computedRowHeight = totalWritableRows > 0
-        ? Math.min(specs.maxRowH, availableForRowsMm / totalWritableRows)
-        : specs.maxRowH;
-
-      // Hoeveel rijen passen er comfortabel (bij 6.2 mm) en maximaal (bij 4.9 mm)?
-      const comfortableMaxRows = Math.floor(availableForRowsMm / COMFORTABLE_ROW_HEIGHT_MM);
-      const absoluteMaxRows = Math.floor(availableForRowsMm / MINIMUM_ROW_HEIGHT_MM);
-
-      // Status bepalen: 'ok' | 'warning' (krap, < 6.2mm) | 'overflow' (te vol, < 4.9mm)
-      let status = 'ok';
-      if (totalWritableRows > absoluteMaxRows) {
-        status = 'overflow';
-      } else if (totalWritableRows > comfortableMaxRows) {
-        status = 'warning';
+    // Naamparser & alfabetische sortering op familienaam
+    function parseStudentName(raw) {
+      const clean = String(raw || '').trim().replace(/\s+/g, ' ');
+      if (!clean) return null;
+      if (clean.includes(',')) {
+        const [last, ...rest] = clean.split(',');
+        const lastName = last.trim();
+        const firstName = rest.join(' ').trim();
+        return { id: uid(), lastName, firstName, fullName: firstName ? `${lastName} ${firstName}` : lastName };
       }
+      const parts = clean.split(' ');
+      if (parts.length === 1) {
+        return { id: uid(), lastName: parts[0], firstName: '', fullName: parts[0] };
+      }
+      // Check hoofdletters (bv. "VAN DEN BERG Lucas")
+      let upperCount = 0;
+      for (const p of parts) {
+        if (p === p.toUpperCase() && /[A-ZÀ-ÿ]/.test(p)) upperCount++;
+        else break;
+      }
+      if (upperCount >= 1 && upperCount < parts.length) {
+        const lastName = parts.slice(0, upperCount).join(' ');
+        const firstName = parts.slice(upperCount).join(' ');
+        return { id: uid(), lastName, firstName, fullName: `${lastName} ${firstName}` };
+      }
+      // Check tussenvoegsels vooraan (bv. "De Vries Jan")
+      let idx = 0;
+      while (idx < parts.length - 1 && PARTICLES.has(parts[idx].toLowerCase())) idx++;
+      if (idx > 0 && idx < parts.length - 1) {
+        const lastName = parts.slice(0, idx + 1).join(' ');
+        const firstName = parts.slice(idx + 1).join(' ');
+        return { id: uid(), lastName, firstName, fullName: `${lastName} ${firstName}` };
+      }
+      const lastName = parts[0];
+      const firstName = parts.slice(1).join(' ');
+      return { id: uid(), lastName, firstName, fullName: `${lastName} ${firstName}` };
+    }
 
-      const overComfortableBy = Math.max(0, totalWritableRows - comfortableMaxRows);
-      const overAbsoluteBy = Math.max(0, totalWritableRows - absoluteMaxRows);
+    function normalizeLastNameKey(lastName) {
+      return String(lastName || '')
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/^d'|^l'/, '')
+        .trim();
+    }
+
+    function sortStudentsAZ(students) {
+      return [...students].sort((a, b) => {
+        const ka = normalizeLastNameKey(a.lastName || a.fullName);
+        const kb = normalizeLastNameKey(b.lastName || b.fullName);
+        const cmp = ka.localeCompare(kb, 'nl');
+        if (cmp !== 0) return cmp;
+        return (a.firstName || '').localeCompare(b.firstName || '', 'nl');
+      });
+    }
+
+    function switchTab(tab) {
+      const isClasses = tab === 'classes';
+      document.getElementById('tabClasses').classList.toggle('hidden', !isClasses);
+      document.getElementById('tabGroups').classList.toggle('hidden', isClasses);
+      document.getElementById('tabBtnClasses').className = isClasses
+        ? 'py-2.5 text-center border-b-2 border-slate-900 text-slate-900 bg-slate-50'
+        : 'py-2.5 text-center border-b-2 border-transparent text-slate-500 hover:text-slate-800';
+      document.getElementById('tabBtnGroups').className = !isClasses
+        ? 'py-2.5 text-center border-b-2 border-slate-900 text-slate-900 bg-slate-50'
+        : 'py-2.5 text-center border-b-2 border-transparent text-slate-500 hover:text-slate-800';
+    }
+
+    function addClass() {
+      const inp = document.getElementById('newClassName');
+      const name = inp.value.trim();
+      if (!name) return;
+      const newCls = { id: uid(), name, students: [], manualOrder: false };
+      state.classes.push(newCls);
+      state.activeClassId = newCls.id;
+      if (!state.selectedClassIds.includes(newCls.id)) state.selectedClassIds.push(newCls.id);
+      inp.value = '';
+      saveState();
+      renderAll();
+    }
+
+    function selectActiveClass(id) {
+      state.activeClassId = id;
+      saveState();
+      renderClassesTab();
+    }
+
+    function renameActiveClass(newName) {
+      const cls = state.classes.find(c => c.id === state.activeClassId);
+      if (!cls || !newName.trim()) return;
+      cls.name = newName.trim();
+      saveState();
+      renderAll();
+    }
+
+    function deleteActiveClass() {
+      const idx = state.classes.findIndex(c => c.id === state.activeClassId);
+      if (idx === -1) return;
+      const removedId = state.classes[idx].id;
+      state.classes.splice(idx, 1);
+      state.selectedClassIds = state.selectedClassIds.filter(id => id !== removedId);
+      state.groups.forEach(g => g.classIds = g.classIds.filter(id => id !== removedId));
+      state.activeClassId = state.classes[0]?.id || null;
+      saveState();
+      renderAll();
+    }
+
+    function addStudentsFromTextarea() {
+      const cls = state.classes.find(c => c.id === state.activeClassId);
+      if (!cls) return;
+      const ta = document.getElementById('bulkStudentsInput');
+      const lines = ta.value.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      if (!lines.length) return;
+      for (const line of lines) {
+        const parsed = parseStudentName(line);
+        if (parsed) cls.students.push(parsed);
+      }
+      if (!cls.manualOrder) {
+        cls.students = sortStudentsAZ(cls.students);
+      }
+      ta.value = '';
+      saveState();
+      renderAll();
+    }
+
+    function moveStudent(index, dir) {
+      const cls = state.classes.find(c => c.id === state.activeClassId);
+      if (!cls) return;
+      const target = index + dir;
+      if (target < 0 || target >= cls.students.length) return;
+      const [item] = cls.students.splice(index, 1);
+      cls.students.splice(target, 0, item);
+      cls.manualOrder = true;
+      saveState();
+      renderAll();
+    }
+
+    function removeStudent(index) {
+      const cls = state.classes.find(c => c.id === state.activeClassId);
+      if (!cls) return;
+      cls.students.splice(index, 1);
+      saveState();
+      renderAll();
+    }
+
+    function sortActiveClassAZ() {
+      const cls = state.classes.find(c => c.id === state.activeClassId);
+      if (!cls) return;
+      cls.students = sortStudentsAZ(cls.students);
+      cls.manualOrder = false;
+      saveState();
+      renderAll();
+    }
+
+    // Klasgroepen & volgorde
+    function toggleClassOnSheet(classId) {
+      const idx = state.selectedClassIds.indexOf(classId);
+      if (idx === -1) state.selectedClassIds.push(classId);
+      else state.selectedClassIds.splice(idx, 1);
+      state.activeGroupId = null;
+      saveState();
+      renderAll();
+    }
+
+    function moveClassInSheet(classId, dir) {
+      const idx = state.selectedClassIds.indexOf(classId);
+      if (idx === -1) return;
+      const target = idx + dir;
+      if (target < 0 || target >= state.selectedClassIds.length) return;
+      const [item] = state.selectedClassIds.splice(idx, 1);
+      state.selectedClassIds.splice(target, 0, item);
+      state.activeGroupId = null;
+      saveState();
+      renderAll();
+    }
+
+    function saveCurrentAsGroup() {
+      const inp = document.getElementById('groupNameInput');
+      const name = inp.value.trim();
+      if (!name) {
+        showToast('Geef eerst een naam op voor de klasgroep.', 'error');
+        return;
+      }
+      if (!state.selectedClassIds.length) {
+        showToast('Vink eerst minstens één klas aan voor deze groep.', 'error');
+        return;
+      }
+      const existing = state.groups.find(g => g.name.toLowerCase() === name.toLowerCase());
+      if (existing) {
+        existing.classIds = [...state.selectedClassIds];
+        state.activeGroupId = existing.id;
+      } else {
+        const grp = { id: uid(), name, classIds: [...state.selectedClassIds] };
+        state.groups.push(grp);
+        state.activeGroupId = grp.id;
+      }
+      inp.value = '';
+      saveState();
+      renderAll();
+      showToast(`Klasgroep "${name}" opgeslagen.`, 'success');
+    }
+
+    function applyGroup(groupId) {
+      const grp = state.groups.find(g => g.id === groupId);
+      if (!grp) return;
+      state.selectedClassIds = grp.classIds.filter(id => state.classes.some(c => c.id === id));
+      state.activeGroupId = grp.id;
+      document.getElementById('groupNameInput').value = grp.name;
+      saveState();
+      renderAll();
+    }
+
+    function deleteGroup(groupId) {
+      state.groups = state.groups.filter(g => g.id !== groupId);
+      if (state.activeGroupId === groupId) state.activeGroupId = null;
+      saveState();
+      renderAll();
+    }
+
+    function updateSetting(key, val) {
+      state.settings[key] = val;
+      saveState();
+      renderAll();
+    }
+
+    // Capaciteitsberekening (strikt 1 A4 liggend: 210mm hoog)
+    function computeSheetMetrics() {
+      const selectedClasses = state.selectedClassIds
+        .map(id => state.classes.find(c => c.id === id))
+        .filter(Boolean);
+
+      const isCompact = state.settings.density === 'compact';
+      const showHeaders = state.settings.showGroupHeaders && selectedClasses.length > 1;
+      const padMm = isCompact ? 5 : 8;
+      const topBarMm = state.settings.sheetTitle ? (isCompact ? 5 : 6.5) : 0;
+      const theadMm = isCompact ? 15 : 18;
+      const availBodyMm = 210 - (padMm * 2) - topBarMm - theadMm;
+
+      let studentRows = 0;
+      selectedClasses.forEach(c => studentRows += c.students.length);
+      const groupHeaderRows = showHeaders ? selectedClasses.length : 0;
+      const extraRows = Math.max(0, state.settings.extraRows || 0);
+      const totalUnits = studentRows + extraRows + (groupHeaderRows * 0.78);
+
+      const effectiveRows = Math.max(totalUnits, 15);
+      const rowHeightMm = availBodyMm / effectiveRows;
+      const maxComfortableRows = Math.floor(availBodyMm / 6.2);
 
       return {
         selectedClasses,
-        studentCount,
+        studentRows,
+        groupHeaderRows,
         extraRows,
-        totalWritableRows,
-        dividerCount,
-        specs,
-        availableForRowsMm,
-        computedRowHeight,
-        comfortableMaxRows,
-        absoluteMaxRows,
-        status,
-        overComfortableBy,
-        overAbsoluteBy
+        totalUnits: Math.ceil(totalUnits),
+        maxComfortableRows,
+        rowHeightMm,
+        isCompact,
+        showHeaders,
+        padMm,
+        topBarMm,
+        theadMm,
+        isTight: totalUnits > maxComfortableRows && rowHeightMm >= 4.8,
+        isOverloaded: rowHeightMm < 4.8
       };
     }
 
-    function computeBalancedSplit(selectedClasses) {
-      if (selectedClasses.length < 2) return null;
-
-      // Zoek het beste splitsingspunt waarbij beide groepen zo evenwichtig mogelijk zijn
-      let bestSplitIdx = 1;
-      let bestDiff = Infinity;
-
-      const total = selectedClasses.reduce((s, c) => s + c.students.length, 0);
-      let running = 0;
-
-      for (let i = 0; i < selectedClasses.length - 1; i++) {
-        running += selectedClasses[i].students.length;
-        const diff = Math.abs((total - running) - running);
-        if (diff < bestDiff) {
-          bestDiff = diff;
-          bestSplitIdx = i + 1;
+    // Voorstellen bij overbelasting
+    function applySuggestion(action) {
+      if (action === 'compact') {
+        state.settings.density = 'compact';
+      } else if (action === 'hideHeaders') {
+        state.settings.showGroupHeaders = false;
+      } else if (action === 'clearExtra') {
+        state.settings.extraRows = 0;
+      } else if (action === 'dropLast') {
+        state.selectedClassIds.pop();
+        state.activeGroupId = null;
+      } else if (action === 'splitGroups') {
+        const selected = state.selectedClassIds
+          .map(id => state.classes.find(c => c.id === id))
+          .filter(Boolean);
+        if (selected.length < 2) return;
+        const totalStudents = selected.reduce((s, c) => s + c.students.length, 0);
+        let acc = 0, splitIdx = 1;
+        for (let i = 0; i < selected.length - 1; i++) {
+          acc += selected[i].students.length;
+          splitIdx = i + 1;
+          if (acc >= totalStudents / 2) break;
         }
+        const part1 = selected.slice(0, splitIdx).map(c => c.id);
+        const part2 = selected.slice(splitIdx).map(c => c.id);
+        const baseName = (document.getElementById('groupNameInput').value.trim() || 'Klasgroep');
+        const g1 = { id: uid(), name: `${baseName} (Deel 1)`, classIds: part1 };
+        const g2 = { id: uid(), name: `${baseName} (Deel 2)`, classIds: part2 };
+        state.groups.push(g1, g2);
+        state.selectedClassIds = [...part1];
+        state.activeGroupId = g1.id;
+        showToast(`Opgesplitst in "${g1.name}" en "${g2.name}".`, 'success');
       }
-
-      const part1 = selectedClasses.slice(0, bestSplitIdx);
-      const part2 = selectedClasses.slice(bestSplitIdx);
-      const count1 = part1.reduce((s, c) => s + c.students.length, 0);
-      const count2 = part2.reduce((s, c) => s + c.students.length, 0);
-
-      return { part1, part2, count1, count2 };
+      saveState();
+      renderAll();
     }
 
-    function buildSmartProposals(fit) {
-      if (fit.status === 'ok') return [];
+    // Back-up & Herstel (JSON + Excel/CSV)
+    function exportJsonBackup() {
+      const payload = { version: 4, exportedAt: new Date().toISOString(), ...state };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `puntenboek_backup_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+    }
 
-      const proposals = [];
-      const s = state.settings;
-
-      // Voorstel 1: Overschakelen naar Compacte weergave
-      if (s.density !== 'compact') {
-        const compactFit = evaluateSheetFit(fit.selectedClasses, { ...s, density: 'compact' });
-        if (compactFit.status !== 'overflow') {
-          proposals.push({
-            id: 'compact',
-            title: 'Schakel over naar compacte bladdichtheid',
-            desc: `Kleinere marges en kophoogte verhogen de capaciteit tot ${compactFit.comfortableMaxRows} comfortabele rijen (max. ${compactFit.absoluteMaxRows}).`,
-            actionLabel: 'Compacte modus toepassen',
-            fn: 'applyProposalCompact()'
+    function exportExcelBackup() {
+      const wb = XLSX.utils.book_new();
+      const rows = [];
+      state.classes.forEach(c => {
+        if (!c.students.length) {
+          rows.push({ Klas: c.name, Familienaam: '', Voornaam: '' });
+        } else {
+          c.students.forEach(s => {
+            rows.push({ Klas: c.name, Familienaam: s.lastName || s.fullName, Voornaam: s.firstName || '' });
           });
         }
-      }
-
-      // Voorstel 2: Tussenkoppen per klas verbergen en klaskolom tonen
-      if (s.showClassDividers && fit.selectedClasses.length > 1) {
-        proposals.push({
-          id: 'hide_dividers',
-          title: `Verberg tussenkoppen per klas (bespaart ${fit.dividerCount} rijen)`,
-          desc: 'Toon de klasnaam compact in de klaskolom in plaats van aparte scheidingsrijen.',
-          actionLabel: 'Tussenkoppen uitschakelen',
-          fn: 'applyProposalHideDividers()'
-        });
-      }
-
-      // Voorstel 3: Extra reserverijen verwijderen
-      if (s.extraRows > 0) {
-        proposals.push({
-          id: 'zero_extra',
-          title: `Verwijder ${s.extraRows} extra reserverij(en)`,
-          desc: 'Gebruik de volledige bladhoogte uitsluitend voor de ingeschreven leerlingen.',
-          actionLabel: 'Reserverijen op 0 zetten',
-          fn: 'applyProposalZeroExtraRows()'
-        });
-      }
-
-      // Voorstel 4: Splitsen in 2 aparte klasgroepen / bladen
-      const split = computeBalancedSplit(fit.selectedClasses);
-      if (split) {
-        const names1 = split.part1.map(c => c.name).join(' + ');
-        const names2 = split.part2.map(c => c.name).join(' + ');
-        proposals.push({
-          id: 'split_groups',
-          title: 'Splits op in 2 aparte klasgroepen (2 A4-bladen)',
-          desc: `Blad 1: ${names1} (${split.count1} lln.) • Blad 2: ${names2} (${split.count2} lln.). Beide worden opgeslagen bij je Klasgroepen.`,
-          actionLabel: 'Splits & sla op als 2 groepen',
-          fn: 'applyProposalSplitIntoGroups()'
-        });
-      }
-
-      // Voorstel 5: Laatste klas uit selectie weglaten
-      if (fit.selectedClasses.length > 1) {
-        const lastCls = fit.selectedClasses[fit.selectedClasses.length - 1];
-        proposals.push({
-          id: 'drop_last',
-          title: `Laat klas "${lastCls.name}" (${lastCls.students.length} lln.) weg op dit blad`,
-          desc: 'Vink de onderste geselecteerde klas uit zodat de overige klassen ruim op 1 A4 passen.',
-          actionLabel: `Klas ${lastCls.name} uitvinken`,
-          fn: 'applyProposalDropLastClass()'
-        });
-      }
-
-      return proposals;
+      });
+      const ws = XLSX.utils.json_to_sheet(rows.length ? rows : [{ Klas: '', Familienaam: '', Voornaam: '' }]);
+      XLSX.utils.book_append_sheet(wb, ws, 'Klassen');
+      XLSX.writeFile(wb, `puntenboek_klassen_${new Date().toISOString().slice(0,10)}.xlsx`);
     }
 
-    // 1-klik acties voor de voorstellen
-    function applyProposalCompact() {
-      state.settings.density = 'compact';
-      saveState();
-      renderAll();
-      showToast('Compacte bladdichtheid toegepast');
-    }
+    function handleRestoreFile(event) {
+      const file = event.target.files?.[0];
+      event.target.value = '';
+      if (!file) return;
 
-    function applyProposalHideDividers() {
-      state.settings.showClassDividers = false;
-      state.settings.showClassCol = true;
-      saveState();
-      renderAll();
-      showToast('Tussenkoppen per klas verborgen; klaskolom ingeschakeld');
-    }
-
-    function applyProposalZeroExtraRows() {
-      state.settings.extraRows = 0;
-      saveState();
-      renderAll();
-      showToast('Extra reserverijen op 0 gezet');
-    }
-
-    function applyProposalDropLastClass() {
-      const selected = state.classes.filter(c => c.selected);
-      if (selected.length <= 1) return;
-      const last = selected[selected.length - 1];
-      last.selected = false;
-      saveState();
-      renderAll();
-      showToast(`Klas "${last.name}" uitgevinkt`);
-    }
-
-    function applyProposalSplitIntoGroups() {
-      const selected = state.classes.filter(c => c.selected);
-      const split = computeBalancedSplit(selected);
-      if (!split) return;
-
-      const baseTitle = (state.settings.title || 'Puntenboek').trim();
-      const name1 = `${baseTitle} — Deel 1 (${split.part1.map(c => c.name).join(' + ')})`;
-      const name2 = `${baseTitle} — Deel 2 (${split.part2.map(c => c.name).join(' + ')})`;
-
-      const grp1 = {
-        id: 'grp_' + Date.now() + '_1',
-        name: name1,
-        classIds: split.part1.map(c => c.id)
-      };
-      const grp2 = {
-        id: 'grp_' + Date.now() + '_2',
-        name: name2,
-        classIds: split.part2.map(c => c.id)
-      };
-
-      state.classGroups.push(grp1, grp2);
-      // Laad meteen Deel 1 zodat het direct printklaar staat op 1 A4
-      loadClassGroup(grp1.id);
-      showToast('Opgesplitst in 2 klasgroepen! Deel 1 is nu actief.');
-    }
-
-    // --- PRINTVOLGORDE & INSTELLINGEN ---
-// ... existing code ... -->
-    function renderPrintSettings() {
-      renderClassGroups();
-
-      const fit = evaluateSheetFit();
-      renderCapacityIndicators(fit);
-
-      document.getElementById('setting-title').value = state.settings.title;
-      document.getElementById('setting-teacher').value = state.settings.teacher;
-      document.getElementById('setting-period').value = state.settings.period;
-      document.getElementById('setting-showClassDividers').checked = state.settings.showClassDividers;
-      document.getElementById('setting-showClassCol').checked = state.settings.showClassCol;
-      document.getElementById('setting-continuousNumbering').checked = state.settings.continuousNumbering;
-      document.getElementById('setting-colCount').value = state.settings.colCount;
-      document.getElementById('col-count-label').textContent = state.settings.colCount;
-      document.getElementById('setting-extraRows').value = state.settings.extraRows;
-      document.getElementById('extra-rows-label').textContent = state.settings.extraRows;
-
-      const btnNorm = document.getElementById('density-normal');
-      const btnComp = document.getElementById('density-compact');
-      if (state.settings.density === 'normal') {
-        btnNorm.className = 'px-3 py-2 text-xs font-semibold rounded-lg border border-indigo-600 bg-indigo-50 text-indigo-700 text-center transition';
-        btnComp.className = 'px-3 py-2 text-xs font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 text-center transition';
+      const reader = new FileReader();
+      if (file.name.toLowerCase().endsWith('.json')) {
+        reader.onload = e => {
+          try {
+            const parsed = JSON.parse(e.target.result);
+            const classes = parsed.classes || parsed.data?.classes;
+            if (!Array.isArray(classes)) throw new Error('Geen geldige klassenlijst gevonden in JSON.');
+            state.classes = classes.map(c => ({
+              id: c.id || uid(),
+              name: String(c.name || 'Klas'),
+              manualOrder: !!c.manualOrder,
+              students: Array.isArray(c.students) ? c.students.map(s =>
+                typeof s === 'string' ? parseStudentName(s) : {
+                  id: s.id || uid(),
+                  lastName: s.lastName || '',
+                  firstName: s.firstName || '',
+                  fullName: s.fullName || `${s.lastName || ''} ${s.firstName || ''}`.trim()
+                }
+              ).filter(Boolean) : []
+            }));
+            state.groups = Array.isArray(parsed.groups) ? parsed.groups : [];
+            state.selectedClassIds = Array.isArray(parsed.selectedClassIds)
+              ? parsed.selectedClassIds.filter(id => state.classes.some(c => c.id === id))
+              : state.classes.map(c => c.id);
+            if (parsed.settings) state.settings = { ...state.settings, ...parsed.settings };
+            state.activeClassId = state.classes[0]?.id || null;
+            saveState();
+            renderAll();
+            const totalSt = state.classes.reduce((n, c) => n + c.students.length, 0);
+            showToast(`Herstel geslaagd: ${state.classes.length} klassen, ${totalSt} leerlingen en ${state.groups.length} klasgroepen geladen.`, 'success');
+          } catch (err) {
+            showToast(`Fout bij herstellen: ${err.message}`, 'error');
+          }
+        };
+        reader.readAsText(file);
       } else {
-        btnComp.className = 'px-3 py-2 text-xs font-semibold rounded-lg border border-indigo-600 bg-indigo-50 text-indigo-700 text-center transition';
-        btnNorm.className = 'px-3 py-2 text-xs font-medium rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 text-center transition';
+        reader.onload = e => {
+          try {
+            const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+            const imported = parseWorkbookToClasses(wb);
+            if (!imported.length) throw new Error('Geen klassen of leerlingen herkend in bestand.');
+            mergeImportedClasses(imported, true);
+            const totalSt = state.classes.reduce((n, c) => n + c.students.length, 0);
+            showToast(`Bestand hersteld: ${state.classes.length} klassen en ${totalSt} leerlingen ingeladen.`, 'success');
+          } catch (err) {
+            showToast(`Fout bij inlezen: ${err.message}`, 'error');
+          }
+        };
+        reader.readAsArrayBuffer(file);
       }
-
-      const listEl = document.getElementById('print-order-list');
-// ... existing code ... -->
-    function renderCapacityIndicators(fit) {
-      const sidebarCard = document.getElementById('sidebar-capacity-card');
-      const previewBanner = document.getElementById('preview-warning-banner');
-      const proposals = buildSmartProposals(fit);
-
-      if (fit.selectedClasses.length === 0) {
-        sidebarCard.className = 'p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600';
-        sidebarCard.innerHTML = `<p class="text-xs">Selecteer klassen om de 1-A4 capaciteit te berekenen.</p>`;
-        previewBanner.classList.add('hidden');
-        return;
-      }
-
-      const rowHeightFormatted = fit.computedRowHeight.toFixed(1).replace('.', ',');
-      const fillPct = Math.min(100, Math.round((fit.totalWritableRows / Math.max(1, fit.comfortableMaxRows)) * 100));
-
-      if (fit.status === 'ok') {
-        sidebarCard.className = 'p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/70 space-y-2';
-        sidebarCard.innerHTML = `
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-              <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-              Past ruim op 1 A4-blad
-            </span>
-            <span class="text-[11px] font-semibold text-emerald-800">${fit.totalWritableRows} / ${fit.comfortableMaxRows} rijen</span>
-          </div>
-          <div class="w-full h-1.5 bg-emerald-200/70 rounded-full overflow-hidden">
-            <div class="h-full bg-emerald-600 rounded-full transition-all" style="width: ${fillPct}%"></div>
-          </div>
-          <p class="text-[11px] text-emerald-800/90">
-            Rijhoogte: <strong>${rowHeightFormatted} mm</strong> (comfortabel schrijfbaar).
-          </p>
-        `;
-        previewBanner.classList.add('hidden');
-        return;
-      }
-
-      // Status is 'warning' (krap) of 'overflow' (te vol voor 1 A4)
-      const isOverflow = fit.status === 'overflow';
-      const toneBorder = isOverflow ? 'border-rose-300 bg-rose-50' : 'border-amber-300 bg-amber-50';
-      const toneTitle = isOverflow ? 'text-rose-900' : 'text-amber-900';
-      const toneText = isOverflow ? 'text-rose-800' : 'text-amber-800';
-      const barBg = isOverflow ? 'bg-rose-200' : 'bg-amber-200';
-      const barFill = isOverflow ? 'bg-rose-600' : 'bg-amber-500';
-
-      const headline = isOverflow
-        ? `Te veel leerlingen voor 1 A4 (${fit.totalWritableRows} rijen — max. ${fit.absoluteMaxRows})`
-        : `Krap op 1 A4 (${fit.totalWritableRows} rijen — aanbevolen max. ${fit.comfortableMaxRows})`;
-
-      const detailMsg = isOverflow
-        ? `Er zijn <strong>${fit.overAbsoluteBy} rij(en) te veel</strong> om dit leesbaar op één liggend A4-blad te houden (rijhoogte zakt naar ${rowHeightFormatted} mm). Kies hieronder een voorstel:`
-        : `De rijhoogte wordt vrij smal (<strong>${rowHeightFormatted} mm</strong> in plaats van minimaal 6,2 mm). Met één van deze aanpassingen schrijft het blad weer ruim:`;
-
-      const proposalsHtml = proposals.map(p => `
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-white/95 rounded-lg border ${isOverflow ? 'border-rose-200' : 'border-amber-200'}">
-          <div class="min-w-0">
-            <p class="text-xs font-bold text-slate-900">${escapeHtml(p.title)}</p>
-            <p class="text-[11px] text-slate-600 mt-0.5">${escapeHtml(p.desc)}</p>
-          </div>
-          <button type="button" onclick="${p.fn}" class="px-3 py-1.5 text-xs font-semibold text-white ${isOverflow ? 'bg-rose-600 hover:bg-rose-700' : 'bg-amber-600 hover:bg-amber-700'} rounded-lg shadow-2xs transition shrink-0">
-            ${escapeHtml(p.actionLabel)}
-          </button>
-        </div>
-      `).join('');
-
-      sidebarCard.className = `p-3.5 rounded-xl border ${toneBorder} space-y-2`;
-      sidebarCard.innerHTML = `
-        <div class="flex items-start gap-2">
-          <svg class="w-4 h-4 ${isOverflow ? 'text-rose-600' : 'text-amber-600'} shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-          </svg>
-          <div class="flex-1 min-w-0">
-            <p class="text-xs font-bold ${toneTitle}">${headline}</p>
-            <div class="w-full h-1.5 ${barBg} rounded-full overflow-hidden my-1.5">
-              <div class="h-full ${barFill} rounded-full" style="width: 100%"></div>
-            </div>
-            <p class="text-[11px] ${toneText}">${detailMsg}</p>
-          </div>
-        </div>
-        <div class="space-y-1.5 pt-1">
-          ${proposalsHtml}
-        </div>
-      `;
-
-      // Toon dezelfde waarschuwing ook prominent boven het live A4-voorbeeld
-      previewBanner.className = `no-print w-full max-w-[297mm] mb-4 p-4 rounded-xl border shadow-xs ${toneBorder} space-y-3`;
-      previewBanner.innerHTML = `
-        <div class="flex items-start gap-2.5">
-          <svg class="w-5 h-5 ${isOverflow ? 'text-rose-600' : 'text-amber-600'} shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-          </svg>
-          <div class="flex-1">
-            <h4 class="text-sm font-bold ${toneTitle}">${headline}</h4>
-            <p class="text-xs ${toneText} mt-0.5">${detailMsg}</p>
-          </div>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-          ${proposalsHtml}
-        </div>
-      `;
     }
 
-    // --- LIVE PRINTVOORBEELD RENDERING ---
-    function saveHeaderCellNote(key, el) {
-      state.settings.headerNotes[key] = el.innerText.trim();
-      saveState();
+    // Excel / CSV Import modal
+    function openImportModal() {
+      pendingImportData = null;
+      document.getElementById('excelFileInput').value = '';
+      document.getElementById('importPreviewBox').classList.add('hidden');
+      document.getElementById('confirmImportBtn').disabled = true;
+      document.getElementById('importModal').classList.remove('hidden');
+      document.getElementById('importModal').classList.add('flex');
     }
 
-    function clearHeaderNotes() {
-      state.settings.headerNotes = {};
-      saveState();
-      renderPreview();
-      showToast('Alle vooringevulde kopvakjes gewist');
+    function closeImportModal() {
+      document.getElementById('importModal').classList.add('hidden');
+      document.getElementById('importModal').classList.remove('flex');
     }
 
-    function buildTableHtml(scopeId, rowsData, subtitleClassLabel) {
-      const colCount = state.settings.colCount;
-      const showClassCol = state.settings.showClassCol;
-      const notes = state.settings.headerNotes || {};
+    function downloadSampleExcel() {
+      const wb = XLSX.utils.book_new();
+      const sample = [
+        { Klas: '4des', Familienaam: 'COENS', Voornaam: 'Helena' },
+        { Klas: '4des', Familienaam: 'DENOLF', Voornaam: 'Marie' },
+        { Klas: '3SPWE+', Familienaam: 'ALBRECHT', Voornaam: 'Juul' }
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(sample), 'Leerlingen');
+      XLSX.writeFile(wb, 'voorbeeld_klassen.xlsx');
+    }
 
-      let descCells = '';
-      let dateCells = '';
-      let maxCells = '';
+    function parseWorkbookToClasses(wb) {
+      const map = new Map();
+      const addEntry = (clsName, studentObj) => {
+        const key = String(clsName || 'Algemeen').trim();
+        if (!map.has(key)) map.set(key, []);
+        if (studentObj) map.get(key).push(studentObj);
+      };
 
-      for (let c = 0; c < colCount; c++) {
-        const descKey = `${scopeId}_desc_${c}`;
-        const dateKey = `${scopeId}_date_${c}`;
-        const maxKey = `${scopeId}_max_${c}`;
+      wb.SheetNames.forEach(sheetName => {
+        const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: '' });
+        if (!rows.length) return;
+        const headers = Object.keys(rows[0]);
+        const findCol = terms => headers.find(h => terms.some(t => h.toLowerCase().includes(t)));
+        const colClass = findCol(['klas', 'class', 'groep']);
+        const colLast = findCol(['familienaam', 'achternaam', 'last', 'naam']);
+        const colFirst = findCol(['voornaam', 'first']);
 
-        descCells += `<th class="editable-header-cell" contenteditable="true" onblur="saveHeaderCellNote('${descKey}', this)">${escapeHtml(notes[descKey] || '')}</th>`;
-        dateCells += `<th class="editable-header-cell" contenteditable="true" onblur="saveHeaderCellNote('${dateKey}', this)">${escapeHtml(notes[dateKey] || '')}</th>`;
-        maxCells += `<th class="editable-header-cell" contenteditable="true" onblur="saveHeaderCellNote('${maxKey}', this)">${escapeHtml(notes[maxKey] || '')}</th>`;
-      }
+        rows.forEach(r => {
+          const clsName = colClass ? String(r[colClass]).trim() : sheetName;
+          if (!clsName) return;
+          let st = null;
+          if (colLast && colFirst && colLast !== colFirst) {
+            const ln = String(r[colLast]).trim();
+            const fn = String(r[colFirst]).trim();
+            if (ln || fn) st = { id: uid(), lastName: ln, firstName: fn, fullName: `${ln} ${fn}`.trim() };
+          } else if (colLast) {
+            st = parseStudentName(r[colLast]);
+          } else {
+            const firstVal = Object.values(r).find(v => String(v).trim());
+            if (firstVal) st = parseStudentName(firstVal);
+          }
+          addEntry(clsName, st);
+        });
+      });
 
-      let emptyEvalCells = '';
-      for (let c = 0; c < colCount; c++) {
-        emptyEvalCells += `<td></td>`;
-      }
+      return Array.from(map.entries()).map(([name, students]) => ({
+        id: uid(),
+        name,
+        manualOrder: false,
+        students: sortStudentsAZ(students)
+      }));
+    }
 
-      const totalCols = (showClassCol ? 3 : 2) + colCount;
-
-      const bodyRowsHtml = rowsData.map(row => {
-        if (row.type === 'divider') {
-          return `
-            <tr class="class-divider-row">
-              <td colspan="${totalCols}">Klas ${escapeHtml(row.className)}</td>
-            </tr>
-          `;
+    function previewImportFile(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+          const parsed = parseWorkbookToClasses(wb);
+          pendingImportData = parsed;
+          const totalSt = parsed.reduce((n, c) => n + c.students.length, 0);
+          document.getElementById('importSummaryText').textContent =
+            `Gevonden: ${parsed.length} klas(sen) met in totaal ${totalSt} leerlingen.`;
+          document.getElementById('importPreviewBox').classList.remove('hidden');
+          document.getElementById('confirmImportBtn').disabled = parsed.length === 0;
+        } catch (err) {
+          showToast('Kon bestand niet lezen: ' + err.message, 'error');
         }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function mergeImportedClasses(imported, replaceAll) {
+      if (replaceAll) {
+        state.classes = imported;
+        state.selectedClassIds = imported.map(c => c.id);
+      } else {
+        imported.forEach(imp => {
+          const existing = state.classes.find(c => c.name.toLowerCase() === imp.name.toLowerCase());
+          if (existing) {
+            existing.students.push(...imp.students);
+            if (!existing.manualOrder) existing.students = sortStudentsAZ(existing.students);
+          } else {
+            state.classes.push(imp);
+            state.selectedClassIds.push(imp.id);
+          }
+        });
+      }
+      state.activeClassId = state.classes[0]?.id || null;
+      saveState();
+      renderAll();
+    }
+
+    function confirmImport() {
+      if (!pendingImportData) return;
+      const mode = document.querySelector('input[name="importMode"]:checked')?.value || 'merge';
+      mergeImportedClasses(pendingImportData, mode === 'replace');
+      closeImportModal();
+      showToast('Klassen en leerlingen geïmporteerd.', 'success');
+    }
+
+    // Renderfuncties
+    function renderClassesTab() {
+      const selectorList = document.getElementById('classSelectorList');
+      const panel = document.getElementById('activeClassPanel');
+      const emptyHint = document.getElementById('emptyClassesHint');
+
+      selectorList.innerHTML = state.classes.map(c => {
+        const active = c.id === state.activeClassId;
+        return `<button onclick="selectActiveClass('${c.id}')" class="px-2.5 py-1 rounded-md text-xs font-medium border ${
+          active ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+        }">${c.name} <span class="opacity-70">(${c.students.length})</span></button>`;
+      }).join('');
+
+      const activeCls = state.classes.find(c => c.id === state.activeClassId);
+      if (!activeCls) {
+        panel.classList.add('hidden');
+        emptyHint.classList.remove('hidden');
+        return;
+      }
+
+      emptyHint.classList.add('hidden');
+      panel.classList.remove('hidden');
+      document.getElementById('editClassNameInput').value = activeCls.name;
+      document.getElementById('studentCountLabel').textContent = `${activeCls.students.length} leerlingen`;
+      document.getElementById('sortStatusBadge').textContent = activeCls.manualOrder ? 'Handmatige volgorde' : 'A–Z familienaam';
+
+      const ul = document.getElementById('studentList');
+      ul.innerHTML = activeCls.students.map((st, idx) => `
+        <li class="px-2.5 py-1.5 flex items-center justify-between gap-2 hover:bg-slate-50">
+          <span class="truncate"><span class="text-slate-400 mr-1.5">${idx + 1}.</span><strong class="font-semibold">${st.lastName}</strong> ${st.firstName}</span>
+          <div class="flex items-center gap-1 shrink-0">
+            <button onclick="moveStudent(${idx}, -1)" class="px-1 text-slate-400 hover:text-slate-800" title="Omhoog">&uarr;</button>
+            <button onclick="moveStudent(${idx}, 1)" class="px-1 text-slate-400 hover:text-slate-800" title="Omlaag">&darr;</button>
+            <button onclick="removeStudent(${idx})" class="px-1 text-rose-400 hover:text-rose-700" title="Verwijderen">&times;</button>
+          </div>
+        </li>
+      `).join('') || '<li class="p-3 text-center text-slate-400">Nog geen leerlingen in deze klas.</li>';
+    }
+
+    function renderGroupsTab(metrics) {
+      // Capaciteitsmeter
+      const capBox = document.getElementById('sidebarCapacityBox');
+      const pct = Math.min(100, Math.round((metrics.totalUnits / Math.max(1, metrics.maxComfortableRows)) * 100));
+      const statusColor = metrics.isOverloaded
+        ? 'bg-rose-50 border-rose-300 text-rose-900'
+        : metrics.isTight
+        ? 'bg-amber-50 border-amber-300 text-amber-900'
+        : 'bg-emerald-50 border-emerald-200 text-emerald-900';
+      capBox.className = `p-2.5 rounded-lg border text-xs space-y-1.5 ${statusColor}`;
+      capBox.innerHTML = `
+        <div class="flex justify-between font-semibold">
+          <span>1-A4 Capaciteit</span>
+          <span>${metrics.totalUnits} / ${metrics.maxComfortableRows} rijen (${metrics.rowHeightMm.toFixed(1)} mm)</span>
+        </div>
+        <div class="w-full h-1.5 bg-white/80 rounded-full overflow-hidden">
+          <div class="h-full ${metrics.isOverloaded ? 'bg-rose-600' : metrics.isTight ? 'bg-amber-500' : 'bg-emerald-600'}" style="width:${pct}%"></div>
+        </div>
+      `;
+
+      // Opgeslagen klasgroepen
+      const activeGrp = state.groups.find(g => g.id === state.activeGroupId);
+      document.getElementById('activeGroupIndicator').textContent = activeGrp ? `Actief: ${activeGrp.name}` : 'Losse selectie';
+
+      document.getElementById('savedGroupsList').innerHTML = state.groups.map(g => {
+        const isActive = g.id === state.activeGroupId;
+        const names = g.classIds.map(id => state.classes.find(c => c.id === id)?.name).filter(Boolean).join(', ');
         return `
-          <tr>
-            <td class="cell-text-nr">${row.nr}</td>
-            ${showClassCol ? `<td class="cell-text-class">${escapeHtml(row.className)}</td>` : ''}
-            <td class="cell-text-name">${escapeHtml(row.name)}</td>
-            ${emptyEvalCells}
-          </tr>
+          <div class="flex items-center justify-between gap-1.5 p-2 rounded border text-xs ${isActive ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 border-slate-200'}">
+            <button onclick="applyGroup('${g.id}')" class="text-left flex-1 truncate">
+              <div class="font-semibold truncate">${g.name}</div>
+              <div class="text-[10px] opacity-75 truncate">${names || 'Leeg'}</div>
+            </button>
+            <button onclick="deleteGroup('${g.id}')" class="px-1.5 py-0.5 text-xs opacity-70 hover:opacity-100">&times;</button>
+          </div>
+        `;
+      }).join('') || '<p class="text-[11px] text-slate-400">Nog geen klasgroepen opgeslagen.</p>';
+
+      // Ordenbare lijst van klassen op blad
+      const ordered = [
+        ...state.selectedClassIds.map(id => state.classes.find(c => c.id === id)).filter(Boolean),
+        ...state.classes.filter(c => !state.selectedClassIds.includes(c.id))
+      ];
+      document.getElementById('sheetClassesOrderList').innerHTML = ordered.map(c => {
+        const checked = state.selectedClassIds.includes(c.id);
+        return `
+          <div class="flex items-center justify-between px-2 py-1.5 rounded border ${checked ? 'bg-white border-slate-300' : 'bg-slate-50 border-slate-200 opacity-60'} text-xs">
+            <label class="flex items-center gap-2 cursor-pointer flex-1 truncate">
+              <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleClassOnSheet('${c.id}')">
+              <span class="font-medium truncate">${c.name}</span>
+              <span class="text-[11px] text-slate-400">(${c.students.length})</span>
+            </label>
+            ${checked ? `
+              <div class="flex items-center gap-1">
+                <button onclick="moveClassInSheet('${c.id}', -1)" class="px-1 text-slate-500 hover:text-slate-900">&uarr;</button>
+                <button onclick="moveClassInSheet('${c.id}', 1)" class="px-1 text-slate-500 hover:text-slate-900">&darr;</button>
+              </div>
+            ` : ''}
+          </div>
         `;
       }).join('');
 
-      const metaParts = [];
-      if (subtitleClassLabel) metaParts.push(`<span><strong>Klas:</strong> ${escapeHtml(subtitleClassLabel)}</span>`);
-      if (state.settings.teacher) metaParts.push(`<span><strong>Leerkracht:</strong> ${escapeHtml(state.settings.teacher)}</span>`);
-      if (state.settings.period) metaParts.push(`<span><strong>Periode:</strong> ${escapeHtml(state.settings.period)}</span>`);
-
-      return `
-        <div class="flex items-end justify-between border-b-2 border-slate-900 pb-1 mb-2 gap-4 shrink-0">
-          <h2 class="text-sm font-bold text-slate-900 tracking-tight">${escapeHtml(state.settings.title || 'Puntenboek')}</h2>
-          <div class="flex items-center gap-4 text-[11px] text-slate-700">
-            ${metaParts.join('')}
-          </div>
-        </div>
-
-        <table class="grade-table">
-          <thead>
-            <tr class="row-desc">
-              <th rowspan="3" class="col-nr">Nr.</th>
-              ${showClassCol ? `<th rowspan="3" class="col-class">Klas</th>` : ''}
-              <th rowspan="3" class="col-name">Naam leerling</th>
-              ${descCells}
-            </tr>
-            <tr class="row-date">
-              ${dateCells}
-            </tr>
-            <tr class="row-max">
-              ${maxCells}
-            </tr>
-          </thead>
-          <tbody>
-            ${bodyRowsHtml}
-          </tbody>
-        </table>
-      `;
+      document.getElementById('sheetTitleInput').value = state.settings.sheetTitle || '';
+      document.getElementById('evalColsInput').value = state.settings.evalCols;
+      document.getElementById('extraRowsInput').value = state.settings.extraRows;
+      document.getElementById('densitySelect').value = state.settings.density;
+      document.getElementById('groupHeaderSelect').value = String(state.settings.showGroupHeaders);
     }
 
-    function renderPreview() {
-      const container = document.getElementById('print-sheets-container');
-      const summaryEl = document.getElementById('preview-summary-text');
-      const fit = evaluateSheetFit();
-      const selectedClasses = fit.selectedClasses;
-
-      if (selectedClasses.length === 0) {
-        summaryEl.textContent = '0 klassen geselecteerd';
-        container.innerHTML = `
-          <div class="a4-landscape-sheet shadow-md rounded-sm flex flex-col items-center justify-center text-center p-10 border border-slate-300 space-y-3">
-            <p class="text-base font-semibold text-slate-700">Nog geen klassen op het puntenboek</p>
-            <p class="text-xs text-slate-500 max-w-md">Importeer een Excel/CSV-bestand of voeg klassen toe in het linkerpaneel en vink ze aan.</p>
-            <button type="button" onclick="openImportModal()" class="no-print inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
-              Excel / CSV importeren
-            </button>
-          </div>
-        `;
+    function renderWarningBanner(metrics) {
+      const banner = document.getElementById('overflowWarningBanner');
+      if (!metrics.isTight && !metrics.isOverloaded) {
+        banner.classList.add('hidden');
         return;
       }
+      banner.classList.remove('hidden');
+      document.getElementById('overflowWarningTitle').textContent = metrics.isOverloaded
+        ? `Waarschuwing: ${metrics.totalUnits} rijen op 1 A4 maakt de invulvakjes erg smal (${metrics.rowHeightMm.toFixed(1)} mm)`
+        : `Let op: het blad raakt vol (${metrics.totalUnits} rijen, rijhoogte ${metrics.rowHeightMm.toFixed(1)} mm)`;
+      document.getElementById('overflowWarningDesc').textContent =
+        'Het blad blijft op één A4-pagina, maar kies een voorstel hieronder om voldoende schrijfhoogte te behouden:';
 
-      const rowHeightFormatted = fit.computedRowHeight.toFixed(1).replace('.', ',');
-      summaryEl.textContent = `${selectedClasses.length} klas(sen) • ${fit.studentCount} leerlingen • rijhoogte ${rowHeightFormatted} mm`;
+      const btns = [];
+      if (state.settings.density !== 'compact') {
+        btns.push(`<button onclick="applySuggestion('compact')" class="px-2.5 py-1 bg-white border border-amber-400 rounded font-medium hover:bg-amber-100">Compacte bladdichtheid</button>`);
+      }
+      if (metrics.showHeaders) {
+        btns.push(`<button onclick="applySuggestion('hideHeaders')" class="px-2.5 py-1 bg-white border border-amber-400 rounded font-medium hover:bg-amber-100">Tussenkoppen verbergen</button>`);
+      }
+      if (state.settings.extraRows > 0) {
+        btns.push(`<button onclick="applySuggestion('clearExtra')" class="px-2.5 py-1 bg-white border border-amber-400 rounded font-medium hover:bg-amber-100">Extra lege rijen verwijderen</button>`);
+      }
+      if (metrics.selectedClasses.length >= 2) {
+        btns.push(`<button onclick="applySuggestion('splitGroups')" class="px-2.5 py-1 bg-amber-900 text-white rounded font-semibold hover:bg-amber-800">Opsplitsen in 2 klasgroepen</button>`);
+        btns.push(`<button onclick="applySuggestion('dropLast')" class="px-2.5 py-1 bg-white border border-amber-400 rounded font-medium hover:bg-amber-100">Laatste klas weglaten</button>`);
+      }
+      document.getElementById('overflowActions').innerHTML = btns.join('');
+    }
 
+    function renderA4Sheet(metrics) {
+      const sheet = document.getElementById('a4Sheet');
+      sheet.style.padding = `${metrics.padMm}mm`;
+
+      const evalCols = Math.max(4, Math.min(20, state.settings.evalCols || 12));
+      const showClassCol = !metrics.showHeaders && metrics.selectedClasses.length > 1;
+      const fontSizePt = metrics.rowHeightMm < 5.2 ? 7.5 : metrics.rowHeightMm < 6.5 ? 8.5 : 9.5;
+
+      // Bouw rijenlijst
       const rows = [];
-      let runningCounter = 1;
-      const showDividers = Boolean(state.settings.showClassDividers && selectedClasses.length > 1);
-
-      selectedClasses.forEach(cls => {
-        if (showDividers) {
-          rows.push({ type: 'divider', className: cls.name });
+      metrics.selectedClasses.forEach(cls => {
+        if (metrics.showHeaders) {
+          rows.push({ type: 'header', label: cls.name });
         }
-
-        cls.students.forEach((st, sIdx) => {
+        cls.students.forEach((st, idx) => {
           rows.push({
             type: 'student',
-            nr: state.settings.continuousNumbering ? runningCounter++ : sIdx + 1,
+            num: idx + 1,
             className: cls.name,
-            name: st
+            name: `${st.lastName} ${st.firstName}`.trim()
           });
         });
       });
 
-      for (let e = 0; e < fit.extraRows; e++) {
-        rows.push({
-          type: 'student',
-          nr: '',
-          className: '',
-          name: ''
-        });
+      // Vul aan tot minstens 15 rijen + extra lege rijen
+      const minFiller = Math.max(0, 15 - rows.length);
+      const totalBlank = minFiller + (state.settings.extraRows || 0);
+      for (let i = 0; i < totalBlank; i++) {
+        rows.push({ type: 'blank' });
       }
 
-      // Dynamische CSS-variabelen zodat de rijen exact binnen de 210mm hoogte van 1 A4 passen
-      const specs = fit.specs;
-      const inlineVars = [
-        `--sheet-pad-y: ${specs.padY}mm`,
-        `--sheet-pad-x: ${specs.padX}mm`,
-        `--hdr-desc-h: ${specs.descH}mm`,
-        `--hdr-date-h: ${specs.dateH}mm`,
-        `--hdr-max-h: ${specs.maxH}mm`,
-        `--divider-row-h: ${specs.dividerH}mm`,
-        `--student-row-h: ${fit.computedRowHeight.toFixed(2)}mm`,
-        `--student-font-size: ${fit.computedRowHeight < 5.4 ? '7.5pt' : specs.fontSize}`,
-        `--divider-font-size: ${specs.dividerFontSize}`
-      ].join('; ');
+      const topHtml = state.settings.sheetTitle
+        ? `<div style="height:${metrics.topBarMm}mm; font-size:10pt; font-weight:700; display:flex; align-items:center; justify-content:space-between; padding-bottom:1mm;">
+            <span>${state.settings.sheetTitle}</span>
+            <span style="font-size:8pt; font-weight:500; color:#475569;">${metrics.selectedClasses.map(c => c.name).join(' · ')}</span>
+           </div>`
+        : '';
 
-      const borderHighlight = fit.status === 'overflow'
-        ? 'border-2 border-rose-400'
-        : fit.status === 'warning'
-          ? 'border-2 border-amber-400'
-          : 'border border-slate-300';
+      const evalHeaders = Array.from({ length: evalCols }, () => `<th></th>`).join('');
+      const evalSubCells = Array.from({ length: evalCols }, () => `<td></td>`).join('');
 
-      const classLabel = selectedClasses.map(c => c.name).join(', ');
-      container.innerHTML = `
-        <section style="${inlineVars}" class="a4-landscape-sheet shadow-md ${borderHighlight}">
-          ${buildTableHtml('single_a4', rows, classLabel)}
-        </section>
+      const bodyHtml = rows.map(r => {
+        if (r.type === 'header') {
+          const span = 2 + (showClassCol ? 1 : 0) + evalCols;
+          return `<tr style="background:#f1f5f9; font-weight:700; font-size:${fontSizePt}pt;">
+            <td colspan="${span}" style="padding-left:4px;">${r.label}</td>
+          </tr>`;
+        }
+        const cells = Array.from({ length: evalCols }, () => `<td></td>`).join('');
+        return `<tr style="font-size:${fontSizePt}pt;">
+          <td style="text-align:center; color:#475569;">${r.type === 'student' ? r.num : ''}</td>
+          ${showClassCol ? `<td style="font-size:${Math.max(7, fontSizePt - 1)}pt; color:#334155;">${r.type === 'student' ? r.className : ''}</td>` : ''}
+          <td style="font-weight:500;">${r.type === 'student' ? r.name : ''}</td>
+          ${cells}
+        </tr>`;
+      }).join('');
+
+      sheet.innerHTML = `
+        ${topHtml}
+        <div style="flex:1; min-height:0;">
+          <table class="punten-table">
+            <colgroup>
+              <col style="width:7mm;">
+              ${showClassCol ? '<col style="width:16mm;">' : ''}
+              <col style="width:48mm;">
+              ${Array.from({ length: evalCols }, () => '<col>').join('')}
+            </colgroup>
+            <thead>
+              <tr style="height:${Math.round(metrics.theadMm * 0.58)}mm; background:#f8fafc;">
+                <th rowspan="3" style="font-size:8pt;">Nr.</th>
+                ${showClassCol ? '<th rowspan="3" style="font-size:8pt;">Klas</th>' : ''}
+                <th rowspan="3" style="text-align:left; padding-left:4px; font-size:8.5pt;">Naam</th>
+                ${evalHeaders}
+              </tr>
+              <tr style="height:${Math.round(metrics.theadMm * 0.21)}mm;">${evalSubCells}</tr>
+              <tr style="height:${Math.round(metrics.theadMm * 0.21)}mm; background:#f8fafc;">${evalSubCells}</tr>
+            </thead>
+            <tbody>
+              ${bodyHtml}
+            </tbody>
+          </table>
+        </div>
       `;
     }
 
     function renderAll() {
-      renderClassEditor();
-      renderPrintSettings();
-      renderPreview();
+      const metrics = computeSheetMetrics();
+      renderClassesTab();
+      renderGroupsTab(metrics);
+      renderWarningBanner(metrics);
+      renderA4Sheet(metrics);
     }
 
-    // --- BACK-UP EXPORT / IMPORT / WISSEN ---
-    function exportBackup() {
-      const dataStr = JSON.stringify(state, null, 2);
-      const blob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `puntenboek-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showToast('Back-upbestand gedownload');
-    }
-
-    function importBackup(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const parsed = JSON.parse(e.target.result);
-          if (!Array.isArray(parsed.classes)) throw new Error('Ongeldig formaat');
-          state = {
-            classes: parsed.classes,
-            classGroups: Array.isArray(parsed.classGroups) ? parsed.classGroups : [],
-            activeGroupId: parsed.activeGroupId || null,
-            activeClassId: parsed.activeClassId || (parsed.classes[0] ? parsed.classes[0].id : null),
-            settings: { ...BLANK_STATE.settings, ...(parsed.settings || {}) }
-          };
-          saveState();
-          renderAll();
-          showToast('Back-up succesvol hersteld');
-        } catch (err) {
-          showToast('Fout: ongeldig JSON-bestand');
-        }
-        event.target.value = '';
-      };
-      reader.readAsText(file);
-    }
-
-    function confirmClearAll() {
-      openConfirmModal(
-        'Alle gegevens wissen',
-        'Weet je zeker dat je alle klassen, leerlingen, klasgroepen en instellingen wilt wissen?',
-        () => {
-          state = JSON.parse(JSON.stringify(BLANK_STATE));
-          saveState();
-          renderAll();
-          showToast('Alle gegevens gewist');
-        }
-      );
-    }
-
-    // --- CUSTOM MODAL HELPERS ---
-    function openConfirmModal(title, message, onConfirm) {
-      const modal = document.getElementById('custom-modal');
-      document.getElementById('modal-title').textContent = title;
-      document.getElementById('modal-message').textContent = message;
-      document.getElementById('modal-input-wrapper').classList.add('hidden');
-
-      const confirmBtn = document.getElementById('modal-confirm-btn');
-      confirmBtn.onclick = () => {
-        closeModal();
-        onConfirm();
-      };
-
-      modal.classList.remove('hidden');
-    }
-
-    function openPromptModal(title, message, defaultValue, onConfirm) {
-      const modal = document.getElementById('custom-modal');
-      const input = document.getElementById('modal-input');
-      document.getElementById('modal-title').textContent = title;
-      document.getElementById('modal-message').textContent = message;
-      document.getElementById('modal-input-wrapper').classList.remove('hidden');
-      input.value = defaultValue || '';
-
-      const confirmBtn = document.getElementById('modal-confirm-btn');
-      confirmBtn.onclick = () => {
-        const val = input.value;
-        closeModal();
-        onConfirm(val);
-      };
-
-      input.onkeydown = (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          confirmBtn.click();
-        }
-      };
-
-      modal.classList.remove('hidden');
-      setTimeout(() => input.focus(), 50);
-    }
-
-    function closeModal() {
-      document.getElementById('custom-modal').classList.add('hidden');
-    }
-
-    function escapeHtml(str) {
-      if (str === null || str === undefined) return '';
-      return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    }
-
-    // Initialisatie
-    window.addEventListener('DOMContentLoaded', () => {
-      renderAll();
-    });
+    loadState();
+    renderAll();
   </script>
 </body>
 </html>
